@@ -349,7 +349,7 @@ mod tests {
         let recipe_path = get_test_data_path().join("recipes").join("Pancakes.cook");
         let recipe = std::fs::read_to_string(recipe_path).unwrap();
 
-        let template_path = get_test_data_path().join("reports").join("ingredients.jinja.md");
+        let template_path = get_test_data_path().join("reports").join("ingredients.md.jinja");
         let template = std::fs::read_to_string(template_path).unwrap();
 
         let result = render_template(&recipe, &template, None, None).unwrap();
