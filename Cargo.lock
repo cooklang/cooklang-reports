@@ -48,8 +48,10 @@ name = "cooklang-reports"
 version = "0.1.0"
 dependencies = [
  "cooklang",
+ "indoc",
  "minijinja",
  "serde",
+ "yaml-datastore",
 ]
 
 [[package]]
@@ -106,6 +108,12 @@ dependencies = [
  "equivalent",
  "hashbrown",
 ]
+
+[[package]]
+name = "indoc"
+version = "2.0.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f4c7245a08504955605670dbf141fceab975f15ca21570696aebe9d2e71576bd"
 
 [[package]]
 name = "itoa"
@@ -377,6 +385,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0e97b544156e9bebe1a0ffbc03484fc1ffe3100cbce3ffb17eac35f7cdd7ab36"
 dependencies = [
  "memchr",
+]
+
+[[package]]
+name = "yaml-datastore"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_yaml",
+ "thiserror",
 ]
 
 [[package]]
