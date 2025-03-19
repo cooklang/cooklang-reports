@@ -1,0 +1,5 @@
+# Ingredients Report
+
+{%- for ingredient in ingredients | sort(attribute='name') %}
+* {{ ingredient.name }}: {{ ingredient.quantity | quantity }}
+{%- endfor %}
