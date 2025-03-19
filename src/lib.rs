@@ -58,25 +58,18 @@ impl Object for RecipeTemplate {
         args: &[MiniValue],
     ) -> Result<MiniValue, MiniError> {
         match name {
-            "get" => {
-                if args.len() != 2 {
+            "db" => {
+                if args.len() != 1 {
                     return Err(MiniError::new(
                         minijinja::ErrorKind::InvalidOperation,
-                        "get method requires exactly 2 arguments: filename and key",
+                        "db method requires exactly 1 argument: key-path",
                     ));
                 }
 
-                let filename = args[0].as_str().ok_or_else(|| {
+                let key_path = args[0].as_str().ok_or_else(|| {
                     MiniError::new(
                         minijinja::ErrorKind::InvalidOperation,
-                        "first argument must be a string (filename)",
-                    )
-                })?;
-
-                let key = args[1].as_str().ok_or_else(|| {
-                    MiniError::new(
-                        minijinja::ErrorKind::InvalidOperation,
-                        "second argument must be a string (key)",
+                        "the argument must be a string (key-path)",
                     )
                 })?;
 
@@ -87,11 +80,80 @@ impl Object for RecipeTemplate {
                     )
                 })?;
 
-                let value: serde_yaml::Value =
-                    datastore.get_with_key(filename, key).map_err(|e| {
+                // Extract file path and key components from key_path
+                let parts: Vec<&str> = key_path.split('/').collect();
+                if parts.is_empty() {
+                    return Err(MiniError::new(
+                        minijinja::ErrorKind::InvalidOperation,
+                        "invalid key_path format: must include directory/file path",
+                    ));
+                }
+
+                // Get the directory part (prefix before the first /)
+                let dir_name = parts[0];
+
+                // For remaining parts, the first one is the file name, rest is the key path
+                let file_name = if parts.len() > 1 {
+                    // Split the second part by first dot to separate filename from key
+                    let file_parts: Vec<&str> = parts[1].splitn(2, '.').collect();
+                    file_parts[0]
+                } else {
+                    "meta" // Default filename if not specified
+                };
+
+                // Construct the full file path
+                let file_path = format!("{}/{}.yml", dir_name, file_name);
+
+                // Build the key path for nested access
+                let key_parts: Vec<String> = if parts.len() > 1 {
+                    // Get the remaining part after the filename
+                    let remaining = if parts[1].contains('.') {
+                        let file_parts: Vec<&str> = parts[1].splitn(2, '.').collect();
+                        if file_parts.len() > 1 {
+                            file_parts[1]
+                        } else {
+                            ""
+                        }
+                    } else {
+                        ""
+                    };
+
+                    // Combine with any additional path components
+                    let mut key_string = remaining.to_string();
+                    for i in 2..parts.len() {
+                        if !key_string.is_empty() {
+                            key_string.push('.');
+                        }
+                        key_string.push_str(parts[i]);
+                    }
+
+                    // Split by dots to get the key parts
+                    key_string.split('.').map(|s| s.to_string()).collect()
+                } else {
+                    Vec::new()
+                };
+
+                let value: serde_yaml::Value = if key_parts.len() == 1 {
+                    // Use get_with_key for single key access
+                    datastore.get_with_key(&file_path, &key_parts[0]).map_err(|e| {
                         let error_msg = format!("failed to get value from datastore: {}", e);
                         MiniError::new(minijinja::ErrorKind::InvalidOperation, error_msg)
-                    })?;
+                    })?
+                } else if key_parts.len() > 1 {
+                    // Use get_with_key_vec for nested key access
+                    // Convert Vec<String> to Vec<&str> for the function call
+                    let key_refs: Vec<&str> = key_parts.iter().map(|s| s.as_str()).collect();
+                    datastore.get_with_key_vec(&file_path, &key_refs).map_err(|e| {
+                        let error_msg = format!("failed to get value from datastore: {}", e);
+                        MiniError::new(minijinja::ErrorKind::InvalidOperation, error_msg)
+                    })?
+                } else {
+                    // No keys specified, get the entire file
+                    datastore.get(&file_path).map_err(|e| {
+                        let error_msg = format!("failed to get value from datastore: {}", e);
+                        MiniError::new(minijinja::ErrorKind::InvalidOperation, error_msg)
+                    })?
+                };
 
                 Ok(MiniValue::from_serialize(&value))
             }
@@ -111,12 +173,20 @@ impl Object for RecipeTemplate {
 }
 
 fn get_from_datastore(state: &State, args: &[MiniValue]) -> Result<MiniValue, MiniError> {
-    if args.len() != 2 {
+    if args.len() != 1 {
         return Err(MiniError::new(
             minijinja::ErrorKind::InvalidOperation,
-            "get_from_datastore requires exactly 2 arguments: filename and key",
+            "db requires exactly 1 argument: key-path",
         ));
     }
+
+    // Validate that the argument is a string, but we don't need to store it
+    args[0].as_str().ok_or_else(|| {
+        MiniError::new(
+            minijinja::ErrorKind::InvalidOperation,
+            "argument must be a string (key-path)",
+        )
+    })?;
 
     let recipe_template = state.lookup("recipe_template").ok_or_else(|| {
         MiniError::new(
@@ -125,7 +195,7 @@ fn get_from_datastore(state: &State, args: &[MiniValue]) -> Result<MiniValue, Mi
         )
     })?;
 
-    recipe_template.call_method(state, "get", args)
+    recipe_template.call_method(state, "db", args)
 }
 
 pub fn render_template(
@@ -157,7 +227,26 @@ pub fn render_template(
     // Setup template environment
     let mut env = Environment::new();
     env.add_template("base", template)?;
-    env.add_function("get_from_datastore", get_from_datastore);
+    env.add_function("db", get_from_datastore);
+
+    // Add quantity filter to format quantities nicely
+    env.add_filter("quantity", |value: MiniValue, _args: &[MiniValue]| -> Result<MiniValue, MiniError> {
+        // Extract the quantity value as a string
+        let quantity_str = value.to_string();
+
+        // Process the string to improve formatting
+        let quantity_str = quantity_str.trim();
+
+        // Normalize spaces between number and unit
+        let formatted = if let Some(pos) = quantity_str.find(|c: char| !c.is_numeric() && c != '.' && c != '/') {
+            let (number, unit) = quantity_str.split_at(pos);
+            format!("{} {}", number.trim(), unit.trim())
+        } else {
+            quantity_str.to_string()
+        };
+
+        Ok(MiniValue::from(formatted))
+    });
 
     // Create context with both direct access and recipe_template
     let mut context = std::collections::HashMap::new();
@@ -181,65 +270,48 @@ pub fn render_template(
 mod tests {
     use super::*;
     use indoc::indoc;
-    use std::fs;
     use std::path::PathBuf;
 
-    fn setup_test_datastore() -> PathBuf {
-        let temp_dir = tempfile::tempdir().unwrap();
-        let datastore_path = temp_dir.path().to_path_buf();
-
-        // Create a test YAML file
-        let yaml_content = indoc! {"
-            ---
-            servings: 4
-            difficulty: medium
-            preparation_time: 30
-        "};
-
-        fs::create_dir_all(&datastore_path).unwrap();
-        fs::write(datastore_path.join("recipe_meta.yaml"), yaml_content).unwrap();
-
-        // Keep the tempdir from being dropped
-        std::mem::forget(temp_dir);
-
-        datastore_path
+    fn get_test_data_path() -> PathBuf {
+        let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        path.push("test");
+        path.push("data");
+        path
     }
 
     #[test]
     fn test_datastore_access() {
-        let datastore_path = setup_test_datastore();
+        let datastore_path = get_test_data_path().join("db");
 
-        // Verify the file exists
-        assert!(
-            datastore_path.join("recipe_meta.yaml").exists(),
-            "Test YAML file should exist"
-        );
+        // Use Pancakes.cook from test data
+        let recipe_path = get_test_data_path().join("recipes").join("Pancakes.cook");
+        let recipe = std::fs::read_to_string(recipe_path).unwrap();
 
-        let recipe = indoc! {"
-            Mix @eggs{3%large} with @milk{250%ml}, add @flour{125%g} to make batter.
-        "};
         let template = indoc! {"
-            # Recipe Info
-            Servings: {{ recipe_template.get('recipe_meta.yaml', 'servings') }}
-            Difficulty: {{ recipe_template.get('recipe_meta.yaml', 'difficulty') }}
-            Preparation Time: {{ recipe_template.get('recipe_meta.yaml', 'preparation_time') }} minutes
+            # Eggs Info
+
+            Density: {{ db('eggs/meta.density') }}
+            Shelf Life: {{ db('eggs/meta.storage.shelf life') }} days
+            Fridge Life: {{ db('eggs/meta.storage.fridge life') }} days
         "};
 
-        let result = render_template(recipe, template, None, Some(&datastore_path)).unwrap();
+        let result = render_template(&recipe, template, None, Some(&datastore_path)).unwrap();
         let expected = indoc! {"
-            # Recipe Info
-            Servings: 4
-            Difficulty: medium
-            Preparation Time: 30 minutes"};
+            # Eggs Info
+
+            Density: 1.03
+            Shelf Life: 30 days
+            Fridge Life: 60 days"};
 
         assert_eq!(result, expected);
     }
 
     #[test]
     fn test_simple_recipe_template() {
-        let recipe = indoc! {"
-            Mix @eggs{3%large} with @milk{250%ml}, add @flour{125%g} to make batter.
-        "};
+        // Use Pancakes.cook from test data
+        let recipe_path = get_test_data_path().join("recipes").join("Pancakes.cook");
+        let recipe = std::fs::read_to_string(recipe_path).unwrap();
+
         let template = indoc! {"
             # Ingredients ({{ scale }}x)
             {%- for ingredient in ingredients %}
@@ -248,7 +320,7 @@ mod tests {
         "};
 
         // Test default scaling (1x)
-        let result = render_template(recipe, template, None, None).unwrap();
+        let result = render_template(&recipe, template, None, None).unwrap();
         let expected = indoc! {"
             # Ingredients (1x)
             - eggs
@@ -257,7 +329,7 @@ mod tests {
         assert_eq!(result, expected);
 
         // Test with 2x scaling
-        let result = render_template(recipe, template, Some(2), None).unwrap();
+        let result = render_template(&recipe, template, Some(2), None).unwrap();
         let expected = indoc! {"
             # Ingredients (2x)
             - eggs
@@ -270,9 +342,10 @@ mod tests {
     #[test]
     #[ignore]
     fn test_recipe_scaling() {
-        let recipe = indoc! {"
-            Mix @eggs{3%large} with @milk{250%ml}, add @flour{125%g} to make batter.
-        "};
+        // Use Pancakes.cook from test data
+        let recipe_path = get_test_data_path().join("recipes").join("Pancakes.cook");
+        let recipe = std::fs::read_to_string(recipe_path).unwrap();
+
         let template = indoc! {"
             # Ingredients ({{ scale }}x)
             {%- for ingredient in ingredients %}
@@ -281,7 +354,7 @@ mod tests {
         "};
 
         // Test default scaling (1x)
-        let result = render_template(recipe, template, None, None).unwrap();
+        let result = render_template(&recipe, template, None, None).unwrap();
         let expected = indoc! {"
             # Ingredients (1x)
             - eggs: 3 large
@@ -290,7 +363,7 @@ mod tests {
         assert_eq!(result, expected);
 
         // Test with 2x scaling
-        let result = render_template(recipe, template, Some(2), None).unwrap();
+        let result = render_template(&recipe, template, Some(2), None).unwrap();
         let expected = indoc! {"
             # Ingredients (2x)
             - eggs: 6 large
@@ -299,12 +372,95 @@ mod tests {
         assert_eq!(result, expected);
 
         // Test with 3x scaling
-        let result = render_template(recipe, template, Some(3), None).unwrap();
+        let result = render_template(&recipe, template, Some(3), None).unwrap();
         let expected = indoc! {"
             # Ingredients (3x)
             - eggs: 9 large
             - milk: 750 ml
             - flour: 375 g"};
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_with_template_from_files() {
+        // Use Pancakes.cook from test data
+        let recipe_path = get_test_data_path().join("recipes").join("Pancakes.cook");
+        let recipe = std::fs::read_to_string(recipe_path).unwrap();
+
+        let template_path = get_test_data_path().join("reports").join("ingredients.jinja.md");
+        let template = std::fs::read_to_string(template_path).unwrap();
+
+        let result = render_template(&recipe, &template, None, None).unwrap();
+        let expected = indoc! {"
+            # Ingredients Report
+
+            * eggs: 3 large
+            * flour: 125 g
+            * milk: 250 ml"};
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_with_template_from_files_with_db() {
+        // Use Pancakes.cook from test data
+        let recipe_path = get_test_data_path().join("recipes").join("Pancakes.cook");
+        let recipe = std::fs::read_to_string(recipe_path).unwrap();
+
+        // Use database path from test data
+        let datastore_path = get_test_data_path().join("db");
+
+        // Create a simplified version of the cost template that uses db function
+        let template = indoc! {"
+            # Cost Report
+
+            {% set eggs_price = db('eggs/shopping.price_per_1') * 3 %}
+            {% set milk_price = db('milk/shopping.price_per_1') * 250 %}
+            {% set flour_price = db('flour/shopping.price_per_1') * 125 %}
+            {% set total = eggs_price + milk_price + flour_price %}
+
+            * Eggs (3): ${{ eggs_price | round(2) }}
+            * Milk (250ml): ${{ milk_price | round(2) }}
+            * Flour (125g): ${{ flour_price | round(2) }}
+
+            Total: ${{ total | round(2) }}
+        "};
+
+        let result = render_template(&recipe, &template, None, Some(&datastore_path)).unwrap();
+
+        // Check if the result contains expected values without comparing exact formatting
+        assert!(result.contains("# Cost Report"));
+        assert!(result.contains("Eggs (3): $"));
+        assert!(result.contains("Milk (250ml): $"));
+        assert!(result.contains("Flour (125g): $"));
+        assert!(result.contains("Total: $"));
+    }
+
+    #[test]
+    fn test_quantity_filter() {
+        // Test recipe with various quantity formats
+        let recipe = indoc! {"
+            Mix @eggs{3%large} with @milk{250 %ml}, add @flour{ 125%g } to make batter.
+            Add @sugar{1.5%tbsp  } and @salt{  1/4 % tsp} for flavor.
+        "};
+
+        // Create a template that uses the quantity filter
+        let template = indoc! {"
+            # Ingredients with Formatted Quantities
+            {%- for ingredient in ingredients %}
+            * {{ ingredient.name }}: {{ ingredient.quantity | quantity }}
+            {%- endfor %}
+        "};
+
+        let result = render_template(recipe, template, None, None).unwrap();
+        let expected = indoc! {"
+            # Ingredients with Formatted Quantities
+            * eggs: 3 large
+            * milk: 250 ml
+            * flour: 125 g
+            * sugar: 1.5 tbsp
+            * salt: 1/4 tsp"};
+
         assert_eq!(result, expected);
     }
 }
