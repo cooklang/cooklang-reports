@@ -6,6 +6,9 @@ use minijinja::{
 use std::{path::Path, sync::Arc};
 use yaml_datastore::Datastore;
 
+mod filters;
+mod functions;
+
 #[derive(Debug)]
 pub struct RecipeTemplate {
     recipe: Recipe<Scaled, Value>,
@@ -172,32 +175,6 @@ impl Object for RecipeTemplate {
     }
 }
 
-fn get_from_datastore(state: &State, args: &[MiniValue]) -> Result<MiniValue, MiniError> {
-    if args.len() != 1 {
-        return Err(MiniError::new(
-            minijinja::ErrorKind::InvalidOperation,
-            "db requires exactly 1 argument: key-path",
-        ));
-    }
-
-    // Validate that the argument is a string, but we don't need to store it
-    args[0].as_str().ok_or_else(|| {
-        MiniError::new(
-            minijinja::ErrorKind::InvalidOperation,
-            "argument must be a string (key-path)",
-        )
-    })?;
-
-    let recipe_template = state.lookup("recipe_template").ok_or_else(|| {
-        MiniError::new(
-            minijinja::ErrorKind::InvalidOperation,
-            "recipe_template not found in context",
-        )
-    })?;
-
-    recipe_template.call_method(state, "db", args)
-}
-
 pub fn render_template(
     recipe: &str,
     template: &str,
@@ -227,27 +204,12 @@ pub fn render_template(
     // Setup template environment
     let mut env = Environment::new();
     env.add_template("base", template)?;
-    env.add_function("db", get_from_datastore);
+    env.add_function("db", functions::get_from_datastore);
 
     // Add quantity filter to format quantities nicely
-    env.add_filter("quantity", |value: MiniValue, _args: &[MiniValue]| -> Result<MiniValue, MiniError> {
-        // Extract the quantity value as a string
-        let quantity_str = value.to_string();
+    env.add_filter("quantity", filters::quantity_filter);
 
-        // Process the string to improve formatting
-        let quantity_str = quantity_str.trim();
-
-        // Normalize spaces between number and unit
-        let formatted = if let Some(pos) = quantity_str.find(|c: char| !c.is_numeric() && c != '.' && c != '/') {
-            let (number, unit) = quantity_str.split_at(pos);
-            format!("{} {}", number.trim(), unit.trim())
-        } else {
-            quantity_str.to_string()
-        };
-
-        Ok(MiniValue::from(formatted))
-    });
-
+    // TODO: remove this once we have a proper context
     // Create context with both direct access and recipe_template
     let mut context = std::collections::HashMap::new();
     let recipe_template_value = MiniValue::from_object(recipe_template);
