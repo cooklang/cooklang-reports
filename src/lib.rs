@@ -1,7 +1,7 @@
 use cooklang::{Converter, CooklangParser, Extensions, Recipe, Value, scale::Scaled};
 use minijinja::{
     Environment, Error as MiniError, State,
-    value::{Enumerator, Object, Value as MiniValue},
+    value::{Object, Value as MiniValue},
 };
 use std::{path::Path, sync::Arc};
 use thiserror::Error;
@@ -185,10 +185,6 @@ impl Object for RecipeTemplate {
                 ))
             }
         }
-    }
-
-    fn enumerate(self: &Arc<Self>) -> Enumerator {
-        Enumerator::Str(&["ingredients", "scale"])
     }
 }
 
