@@ -9,6 +9,9 @@ use yaml_datastore::Datastore;
 mod filters;
 mod functions;
 
+use filters::{quantity_filter, numeric_filter, format_price_filter};
+use functions::get_from_datastore;
+
 #[derive(Debug)]
 pub struct RecipeTemplate {
     recipe: Recipe<Scaled, Value>,
@@ -204,12 +207,13 @@ pub fn render_template(
     // Setup template environment
     let mut env = Environment::new();
     env.add_template("base", template)?;
-    env.add_function("db", functions::get_from_datastore);
+    env.add_function("db", get_from_datastore);
 
-    // Add quantity filter to format quantities nicely
-    env.add_filter("quantity", filters::quantity_filter);
+    // Add filters
+    env.add_filter("quantity", quantity_filter);
+    env.add_filter("numeric", numeric_filter);
+    env.add_filter("format_price", format_price_filter);
 
-    // TODO: remove this once we have a proper context
     // Create context with both direct access and recipe_template
     let mut context = std::collections::HashMap::new();
     let recipe_template_value = MiniValue::from_object(recipe_template);
@@ -372,30 +376,22 @@ mod tests {
         // Use database path from test data
         let datastore_path = get_test_data_path().join("db");
 
-        // Create a simplified version of the cost template that uses db function
-        let template = indoc! {"
-            # Cost Report
-
-            {% set eggs_price = db('eggs/shopping.price_per_1') * 3 %}
-            {% set milk_price = db('milk/shopping.price_per_1') * 250 %}
-            {% set flour_price = db('flour/shopping.price_per_1') * 125 %}
-            {% set total = eggs_price + milk_price + flour_price %}
-
-            * Eggs (3): ${{ eggs_price | round(2) }}
-            * Milk (250ml): ${{ milk_price | round(2) }}
-            * Flour (125g): ${{ flour_price | round(2) }}
-
-            Total: ${{ total | round(2) }}
-        "};
+        let template_path = get_test_data_path().join("reports").join("cost.md.jinja");
+        let template = std::fs::read_to_string(template_path).unwrap();
 
         let result = render_template(&recipe, &template, None, Some(&datastore_path)).unwrap();
 
-        // Check if the result contains expected values without comparing exact formatting
-        assert!(result.contains("# Cost Report"));
-        assert!(result.contains("Eggs (3): $"));
-        assert!(result.contains("Milk (250ml): $"));
-        assert!(result.contains("Flour (125g): $"));
-        assert!(result.contains("Total: $"));
+        // Verify the report structure and content
+        let expected = indoc! {
+            "# Cost Report
+
+            * eggs: $0.75
+            * milk: $0.25
+            * flour: $0.19
+
+            Total: $1.19"};
+
+        assert_eq!(result, expected);
     }
 
     #[test]
