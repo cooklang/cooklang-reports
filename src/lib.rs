@@ -149,15 +149,7 @@ impl Object for RecipeTemplate {
                     Vec::new()
                 };
 
-                let value: serde_yaml::Value = if key_parts.len() == 1 {
-                    // Use get_with_key for single key access
-                    datastore
-                        .get_with_key(&file_path, &key_parts[0])
-                        .map_err(|e| {
-                            let error_msg = format!("failed to get value from datastore: {}", e);
-                            MiniError::new(minijinja::ErrorKind::InvalidOperation, error_msg)
-                        })?
-                } else if key_parts.len() > 1 {
+                let value: serde_yaml::Value = if key_parts.len() >= 1 {
                     // Use get_with_key_vec for nested key access
                     // Convert Vec<String> to Vec<&str> for the function call
                     let key_refs: Vec<&str> = key_parts.iter().map(|s| s.as_str()).collect();
