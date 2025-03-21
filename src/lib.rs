@@ -9,7 +9,7 @@ use yaml_datastore::Datastore;
 mod filters;
 mod functions;
 
-use filters::{quantity_filter, numeric_filter, format_price_filter};
+use filters::{format_price_filter, numeric_filter, quantity_filter};
 use functions::get_from_datastore;
 
 #[derive(Debug)]
@@ -52,7 +52,7 @@ impl Object for RecipeTemplate {
                     .collect::<Vec<_>>();
                 Some(MiniValue::from_serialize(&ingredients))
             }
-            "scale" => Some(MiniValue::from_serialize(&self.scale)),
+            "scale" => Some(MiniValue::from_serialize(self.scale)),
             _ => None,
         }
     }
@@ -141,18 +141,22 @@ impl Object for RecipeTemplate {
 
                 let value: serde_yaml::Value = if key_parts.len() == 1 {
                     // Use get_with_key for single key access
-                    datastore.get_with_key(&file_path, &key_parts[0]).map_err(|e| {
-                        let error_msg = format!("failed to get value from datastore: {}", e);
-                        MiniError::new(minijinja::ErrorKind::InvalidOperation, error_msg)
-                    })?
+                    datastore
+                        .get_with_key(&file_path, &key_parts[0])
+                        .map_err(|e| {
+                            let error_msg = format!("failed to get value from datastore: {}", e);
+                            MiniError::new(minijinja::ErrorKind::InvalidOperation, error_msg)
+                        })?
                 } else if key_parts.len() > 1 {
                     // Use get_with_key_vec for nested key access
                     // Convert Vec<String> to Vec<&str> for the function call
                     let key_refs: Vec<&str> = key_parts.iter().map(|s| s.as_str()).collect();
-                    datastore.get_with_key_vec(&file_path, &key_refs).map_err(|e| {
-                        let error_msg = format!("failed to get value from datastore: {}", e);
-                        MiniError::new(minijinja::ErrorKind::InvalidOperation, error_msg)
-                    })?
+                    datastore
+                        .get_with_key_vec(&file_path, &key_refs)
+                        .map_err(|e| {
+                            let error_msg = format!("failed to get value from datastore: {}", e);
+                            MiniError::new(minijinja::ErrorKind::InvalidOperation, error_msg)
+                        })?
                 } else {
                     // No keys specified, get the entire file
                     datastore.get(&file_path).map_err(|e| {
@@ -353,7 +357,9 @@ mod tests {
         let recipe_path = get_test_data_path().join("recipes").join("Pancakes.cook");
         let recipe = std::fs::read_to_string(recipe_path).unwrap();
 
-        let template_path = get_test_data_path().join("reports").join("ingredients.md.jinja");
+        let template_path = get_test_data_path()
+            .join("reports")
+            .join("ingredients.md.jinja");
         let template = std::fs::read_to_string(template_path).unwrap();
 
         let result = render_template(&recipe, &template, None, None).unwrap();
@@ -382,8 +388,8 @@ mod tests {
         let result = render_template(&recipe, &template, None, Some(&datastore_path)).unwrap();
 
         // Verify the report structure and content
-        let expected = indoc! {
-            "# Cost Report
+        let expected = indoc! {"
+            # Cost Report
 
             * eggs: $0.75
             * milk: $0.25
