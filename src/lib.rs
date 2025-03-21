@@ -4,6 +4,7 @@ use minijinja::{
     value::{Enumerator, Object, Value as MiniValue},
 };
 use std::{path::Path, sync::Arc};
+use thiserror::Error;
 use yaml_datastore::Datastore;
 
 mod filters;
@@ -11,6 +12,15 @@ mod functions;
 
 use filters::{format_price_filter, numeric_filter, quantity_filter};
 use functions::get_from_datastore;
+
+#[derive(Error, Debug)]
+pub enum Error {
+    #[error("error parsing recipe")]
+    RecipeParseError(#[from] cooklang::error::SourceReport),
+
+    #[error("template error")]
+    TemplateError(#[from] minijinja::Error),
+}
 
 #[derive(Debug)]
 pub struct RecipeTemplate {
@@ -187,7 +197,7 @@ pub fn render_template(
     template: &str,
     scale: Option<u32>,
     datastore_path: Option<&Path>,
-) -> Result<String, Box<dyn std::error::Error>> {
+) -> Result<String, Error> {
     // Parse recipe
     let parser = CooklangParser::new(Extensions::all(), Converter::default());
     let (recipe, _warnings) = parser.parse(recipe).into_result()?;
