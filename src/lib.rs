@@ -245,17 +245,7 @@ struct RecipeContext {
 mod config;
 
 pub fn render_recipe(recipe: &str, template: &str) -> Result<String, Error> {
-    let recipe_parser = CooklangParser::new(Extensions::all(), Converter::default());
-    let (unscaled_recipe, _warnings) = recipe_parser.parse(recipe).into_result()?;
-    let recipe = unscaled_recipe.default_scale();
-
-    let mut template_environment = Environment::new();
-    template_environment.add_template("base", template)?;
-
-    let context = RecipeContext { recipe, scale: 1 };
-
-    let tmpl = template_environment.get_template("base")?;
-    Ok(tmpl.render(context)?)
+    render_recipe_with_config(recipe, template, &Config::default())
 }
 
 pub fn render_recipe_with_config(
