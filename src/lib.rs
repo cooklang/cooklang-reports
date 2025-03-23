@@ -1,8 +1,9 @@
-use cooklang::{Converter, CooklangParser, Extensions, Recipe, Value, scale::Scaled};
+use cooklang::{Converter, CooklangParser, Extensions, Recipe, ScaledRecipe, Value, scale::Scaled};
 use minijinja::{
     Environment, Error as MiniError, State,
     value::{Object, Value as MiniValue},
 };
+use serde::Serialize;
 use std::{path::Path, sync::Arc};
 use thiserror::Error;
 use yaml_datastore::Datastore;
@@ -180,7 +181,7 @@ impl Object for RecipeTemplate {
     }
 }
 
-pub fn render_template(
+pub fn render_template_old(
     recipe: &str,
     template: &str,
     scale: Option<u32>,
@@ -234,6 +235,44 @@ pub fn render_template(
     Ok(tmpl.render(context)?)
 }
 
+#[derive(Serialize)]
+struct RecipeContext {
+    #[serde(flatten)]
+    recipe: ScaledRecipe,
+    scale: u32,
+}
+
+mod config;
+
+pub fn render_recipe(recipe: &str, template: &str) -> Result<String, Error> {
+    let recipe_parser = CooklangParser::new(Extensions::all(), Converter::default());
+    let (unscaled_recipe, _warnings) = recipe_parser.parse(recipe).into_result()?;
+    let recipe = unscaled_recipe.default_scale();
+
+    let mut template_environment = Environment::new();
+    template_environment.add_template("base", template)?;
+
+    let context = RecipeContext { recipe, scale: 1 };
+
+    let tmpl = template_environment.get_template("base")?;
+    Ok(tmpl.render(context)?)
+}
+
+pub fn render_recipe_scaled(recipe: &str, template: &str, scale: u32) -> Result<String, Error> {
+    let recipe_parser = CooklangParser::new(Extensions::all(), Converter::default());
+    let (unscaled_recipe, _warnings) = recipe_parser.parse(recipe).into_result()?;
+    let converter = Converter::default();
+    let recipe = unscaled_recipe.scale(scale, &converter);
+
+    let mut template_environment = Environment::new();
+    template_environment.add_template("base", template)?;
+
+    let context = RecipeContext { recipe, scale };
+
+    let tmpl = template_environment.get_template("base")?;
+    Ok(tmpl.render(context)?)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -245,6 +284,38 @@ mod tests {
         path.push("test");
         path.push("data");
         path
+    }
+
+    #[test]
+    fn simple_template_new() {
+        // Use Pancakes.cook from test data
+        let recipe_path = get_test_data_path().join("recipes").join("Pancakes.cook");
+        let recipe = std::fs::read_to_string(recipe_path).unwrap();
+
+        let template: &str = indoc! {"
+            # Ingredients ({{ scale }}x)
+            {%- for ingredient in ingredients %}
+            - {{ ingredient.name }}
+            {%- endfor %}
+        "};
+
+        // Test default scaling (1x)
+        let result = render_recipe(&recipe, template).unwrap();
+        let expected = indoc! {"
+            # Ingredients (1x)
+            - eggs
+            - milk
+            - flour"};
+        assert_eq!(result, expected);
+
+        // Test with 2x scaling
+        let result = render_recipe_scaled(&recipe, template, 2).unwrap();
+        let expected = indoc! {"
+            # Ingredients (2x)
+            - eggs
+            - milk
+            - flour"};
+        assert_eq!(result, expected);
     }
 
     #[test]
@@ -263,7 +334,7 @@ mod tests {
             Fridge Life: {{ db('eggs/meta.storage.fridge life') }} days
         "};
 
-        let result = render_template(&recipe, template, None, Some(&datastore_path)).unwrap();
+        let result = render_template_old(&recipe, template, None, Some(&datastore_path)).unwrap();
         let expected = indoc! {"
             # Eggs Info
 
@@ -288,7 +359,7 @@ mod tests {
         "};
 
         // Test default scaling (1x)
-        let result = render_template(&recipe, template, None, None).unwrap();
+        let result = render_template_old(&recipe, template, None, None).unwrap();
         let expected = indoc! {"
             # Ingredients (1x)
             - eggs
@@ -297,7 +368,7 @@ mod tests {
         assert_eq!(result, expected);
 
         // Test with 2x scaling
-        let result = render_template(&recipe, template, Some(2), None).unwrap();
+        let result = render_template_old(&recipe, template, Some(2), None).unwrap();
         let expected = indoc! {"
             # Ingredients (2x)
             - eggs
@@ -322,7 +393,7 @@ mod tests {
         "};
 
         // Test default scaling (1x)
-        let result = render_template(&recipe, template, None, None).unwrap();
+        let result = render_template_old(&recipe, template, None, None).unwrap();
         let expected = indoc! {"
             # Ingredients (1x)
             - eggs: 3 large
@@ -331,7 +402,7 @@ mod tests {
         assert_eq!(result, expected);
 
         // Test with 2x scaling
-        let result = render_template(&recipe, template, Some(2), None).unwrap();
+        let result = render_template_old(&recipe, template, Some(2), None).unwrap();
         let expected = indoc! {"
             # Ingredients (2x)
             - eggs: 6 large
@@ -340,7 +411,7 @@ mod tests {
         assert_eq!(result, expected);
 
         // Test with 3x scaling
-        let result = render_template(&recipe, template, Some(3), None).unwrap();
+        let result = render_template_old(&recipe, template, Some(3), None).unwrap();
         let expected = indoc! {"
             # Ingredients (3x)
             - eggs: 9 large
@@ -360,7 +431,7 @@ mod tests {
             .join("ingredients.md.jinja");
         let template = std::fs::read_to_string(template_path).unwrap();
 
-        let result = render_template(&recipe, &template, None, None).unwrap();
+        let result = render_template_old(&recipe, &template, None, None).unwrap();
         let expected = indoc! {"
             # Ingredients Report
 
@@ -383,7 +454,7 @@ mod tests {
         let template_path = get_test_data_path().join("reports").join("cost.md.jinja");
         let template = std::fs::read_to_string(template_path).unwrap();
 
-        let result = render_template(&recipe, &template, None, Some(&datastore_path)).unwrap();
+        let result = render_template_old(&recipe, &template, None, Some(&datastore_path)).unwrap();
 
         // Verify the report structure and content
         let expected = indoc! {"
@@ -414,7 +485,7 @@ mod tests {
             {%- endfor %}
         "};
 
-        let result = render_template(recipe, template, None, None).unwrap();
+        let result = render_template_old(recipe, template, None, None).unwrap();
         let expected = indoc! {"
             # Ingredients with Formatted Quantities
             * eggs: 3 large
