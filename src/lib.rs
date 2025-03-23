@@ -13,7 +13,7 @@ mod filters;
 mod functions;
 
 use filters::{format_price_filter, numeric_filter};
-use functions::get_from_datastore;
+use functions::{datastore, get_from_datastore};
 
 #[derive(Error, Debug)]
 pub enum Error {
@@ -240,10 +240,14 @@ struct RecipeContext {
     #[serde(flatten)]
     recipe: ScaledRecipe,
     scale: u32,
+    datastore: Option<Datastore>,
 }
 
 mod config;
 
+/// Render a recipe with the deault configuration.
+///
+/// This is equivalent to calling [render_recipe_with_config] with a default [Config].
 pub fn render_recipe(recipe: &str, template: &str) -> Result<String, Error> {
     render_recipe_with_config(recipe, template, &Config::default())
 }
@@ -253,17 +257,27 @@ pub fn render_recipe_with_config(
     template: &str,
     config: &Config,
 ) -> Result<String, Error> {
+    // Parse and validate recipe string
     let recipe_parser = CooklangParser::new(Extensions::all(), Converter::default());
     let (unscaled_recipe, _warnings) = recipe_parser.parse(recipe).into_result()?;
+
+    // Create final, scaled recipe
     let converter = Converter::default();
     let recipe = unscaled_recipe.scale(config.scale, &converter);
 
     let mut template_environment = Environment::new();
     template_environment.add_template("base", template)?;
+    template_environment.add_function("db", get_from_datastore);
+
+    let datastore = match &config.datastore_path {
+        Some(path) => Some(Datastore::open(path)),
+        None => None,
+    };
 
     let context = RecipeContext {
         recipe,
         scale: config.scale,
+        datastore,
     };
 
     let tmpl = template_environment.get_template("base")?;
@@ -343,9 +357,8 @@ mod tests {
         assert_eq!(result, expected);
     }
 
-    // TODO need to update parser builder to support scaling
     #[test]
-    #[ignore]
+    #[ignore = "need to update parser builder to support scaling"]
     fn test_recipe_scaling() {
         // Use Pancakes.cook from test data
         let recipe_path = get_test_data_path().join("recipes").join("Pancakes.cook");

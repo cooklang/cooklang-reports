@@ -1,4 +1,6 @@
 use minijinja::{Error as MiniError, State, Value as MiniValue};
+use serde::Deserialize;
+use yaml_datastore::Datastore;
 
 pub fn get_from_datastore(state: &State, args: &[MiniValue]) -> Result<MiniValue, MiniError> {
     if args.len() != 1 {
@@ -15,6 +17,12 @@ pub fn get_from_datastore(state: &State, args: &[MiniValue]) -> Result<MiniValue
             "argument must be a string (key-path)",
         )
     })?;
+
+    // if let Some(datastore) = state.lookup("datastore") {}
+    // let datastore = state.lookup("datastore").and_then(f)
+    // if let Some(datastore_value) = datastore {
+    //     let datastore = Option::<Datastore>::deserialize(datastore_value).unwrap();
+    // }
 
     let recipe_template = state.lookup("recipe_template").ok_or_else(|| {
         MiniError::new(
