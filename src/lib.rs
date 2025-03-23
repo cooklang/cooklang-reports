@@ -1,3 +1,4 @@
+use config::Config;
 use cooklang::{Converter, CooklangParser, Extensions, Recipe, ScaledRecipe, Value, scale::Scaled};
 use minijinja::{
     Environment, Error as MiniError, State,
@@ -257,16 +258,23 @@ pub fn render_recipe(recipe: &str, template: &str) -> Result<String, Error> {
     Ok(tmpl.render(context)?)
 }
 
-pub fn render_recipe_scaled(recipe: &str, template: &str, scale: u32) -> Result<String, Error> {
+pub fn render_recipe_with_config(
+    recipe: &str,
+    template: &str,
+    config: &Config,
+) -> Result<String, Error> {
     let recipe_parser = CooklangParser::new(Extensions::all(), Converter::default());
     let (unscaled_recipe, _warnings) = recipe_parser.parse(recipe).into_result()?;
     let converter = Converter::default();
-    let recipe = unscaled_recipe.scale(scale, &converter);
+    let recipe = unscaled_recipe.scale(config.scale, &converter);
 
     let mut template_environment = Environment::new();
     template_environment.add_template("base", template)?;
 
-    let context = RecipeContext { recipe, scale };
+    let context = RecipeContext {
+        recipe,
+        scale: config.scale,
+    };
 
     let tmpl = template_environment.get_template("base")?;
     Ok(tmpl.render(context)?)
@@ -307,8 +315,9 @@ mod tests {
             - flour"};
         assert_eq!(result, expected);
 
-        // Test with 2x scaling
-        let result = render_recipe_scaled(&recipe, template, 2).unwrap();
+        // Test with 2x scaling, but only for the actual scale number
+        let config: Config = Config::builder().scale(2).build();
+        let result = render_recipe_with_config(&recipe, template, &config).unwrap();
         let expected = indoc! {"
             # Ingredients (2x)
             - eggs
@@ -341,38 +350,6 @@ mod tests {
             Shelf Life: 30 days
             Fridge Life: 60 days"};
 
-        assert_eq!(result, expected);
-    }
-
-    #[test]
-    fn test_simple_recipe_template() {
-        // Use Pancakes.cook from test data
-        let recipe_path = get_test_data_path().join("recipes").join("Pancakes.cook");
-        let recipe = std::fs::read_to_string(recipe_path).unwrap();
-
-        let template = indoc! {"
-            # Ingredients ({{ scale }}x)
-            {%- for ingredient in ingredients %}
-            - {{ ingredient.name }}
-            {%- endfor %}
-        "};
-
-        // Test default scaling (1x)
-        let result = render_template_old(&recipe, template, None, None).unwrap();
-        let expected = indoc! {"
-            # Ingredients (1x)
-            - eggs
-            - milk
-            - flour"};
-        assert_eq!(result, expected);
-
-        // Test with 2x scaling
-        let result = render_template_old(&recipe, template, Some(2), None).unwrap();
-        let expected = indoc! {"
-            # Ingredients (2x)
-            - eggs
-            - milk
-            - flour"};
         assert_eq!(result, expected);
     }
 

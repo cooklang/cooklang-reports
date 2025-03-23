@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
 pub struct Config {
-    scale: u32,
-    datastore_path: Option<PathBuf>,
+    pub scale: u32,
+    pub datastore_path: Option<PathBuf>,
 }
 
 impl Default for Config {
@@ -35,13 +35,20 @@ impl Default for ConfigBuilder {
 }
 
 impl ConfigBuilder {
-    fn scale(&mut self, scale: u32) -> &mut Self {
+    pub fn scale(&mut self, scale: u32) -> &mut Self {
         self.scale = scale;
         self
     }
 
-    fn datastore_path<P: Into<PathBuf>>(&mut self, datstore_path: P) -> &mut Self {
+    pub fn datastore_path<P: Into<PathBuf>>(&mut self, datstore_path: P) -> &mut Self {
         self.datastore_path = Some(datstore_path.into());
         self
+    }
+
+    pub fn build(&mut self) -> Config {
+        Config {
+            scale: self.scale,
+            datastore_path: self.datastore_path.clone(),
+        }
     }
 }
