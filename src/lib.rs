@@ -11,7 +11,7 @@ use yaml_datastore::Datastore;
 mod filters;
 mod functions;
 
-use filters::{format_price_filter, numeric_filter, quantity_filter};
+use filters::{format_price_filter, numeric_filter};
 use functions::get_from_datastore;
 
 #[derive(Error, Debug)]
@@ -213,7 +213,6 @@ pub fn render_template_old(
     env.add_function("db", get_from_datastore);
 
     // Add filters
-    env.add_filter("quantity", quantity_filter);
     env.add_filter("numeric", numeric_filter);
     env.add_filter("format_price", format_price_filter);
 
@@ -465,34 +464,6 @@ mod tests {
             * flour: $0.19
 
             Total: $1.19"};
-
-        assert_eq!(result, expected);
-    }
-
-    #[test]
-    fn test_quantity_filter() {
-        // Test recipe with various quantity formats
-        let recipe = indoc! {"
-            Mix @eggs{3%large} with @milk{250 %ml}, add @flour{ 125%g } to make batter.
-            Add @sugar{1.5%tbsp  } and @salt{  1/4 % tsp} for flavor.
-        "};
-
-        // Create a template that uses the quantity filter
-        let template = indoc! {"
-            # Ingredients with Formatted Quantities
-            {%- for ingredient in ingredients %}
-            * {{ ingredient.name }}: {{ ingredient.quantity | quantity }}
-            {%- endfor %}
-        "};
-
-        let result = render_template_old(recipe, template, None, None).unwrap();
-        let expected = indoc! {"
-            # Ingredients with Formatted Quantities
-            * eggs: 3 large
-            * milk: 250 ml
-            * flour: 125 g
-            * sugar: 1.5 tbsp
-            * salt: 1/4 tsp"};
 
         assert_eq!(result, expected);
     }
