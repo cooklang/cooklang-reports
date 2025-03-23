@@ -182,6 +182,8 @@ impl Object for RecipeTemplate {
     }
 }
 
+mod key_path;
+
 pub fn render_template_old(
     recipe: &str,
     template: &str,
