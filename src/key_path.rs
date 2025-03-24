@@ -7,9 +7,16 @@
 //! This means that at least a single slash is required.
 //!
 //! How do we deal with slashes in YAML keys? We should just disallow them.
-use std::{fmt::Display, path::PathBuf};
+//!
+//! Also just for a note, because we're using dots for the keys, we also technically disallow those.
+use serde::Deserialize;
+use std::{
+    fmt::Display,
+    path::{Path, PathBuf},
+};
 use thiserror::Error;
 
+const YAML_EXTENSION: &str = "yml";
 const KEYPATH_DELIMITER: &str = "/";
 const KEY_DELIMITER: &str = ".";
 
@@ -22,10 +29,20 @@ pub enum KeyPathParseError {
     NoPath,
 }
 
-#[derive(Debug)]
-struct KeyPath {
+#[derive(Deserialize, Debug)]
+pub struct KeyPath {
     path: PathBuf,
     key: Vec<String>,
+}
+
+impl KeyPath {
+    pub fn path(&self) -> &Path {
+        self.path.as_path()
+    }
+
+    pub fn key_vec(&self) -> Vec<String> {
+        self.key.to_owned()
+    }
 }
 
 impl TryFrom<&str> for KeyPath {
@@ -41,7 +58,7 @@ impl TryFrom<&str> for KeyPath {
         }
 
         Ok(Self {
-            path: path.into(),
+            path: PathBuf::from(path).with_extension(YAML_EXTENSION),
             key: key
                 .split_terminator(KEY_DELIMITER)
                 .map(String::from)
@@ -52,7 +69,12 @@ impl TryFrom<&str> for KeyPath {
 
 impl Display for KeyPath {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}/{}", self.path.display(), self.key.join("."))
+        write!(
+            f,
+            "{}/{}",
+            self.path.with_extension("").display(),
+            self.key.join(".")
+        )
     }
 }
 
@@ -64,7 +86,10 @@ mod tests {
     fn file_and_simple_key() {
         let input = "path/key";
         let result = KeyPath::try_from(input).unwrap();
-        assert_eq!(result.path, PathBuf::from("path"));
+        assert_eq!(
+            result.path,
+            PathBuf::from("path").with_extension(YAML_EXTENSION)
+        );
         assert_eq!(result.key, vec!["key"]);
         assert_eq!(input, result.to_string());
     }
@@ -73,7 +98,10 @@ mod tests {
     fn path_and_simple_key() {
         let input = "dir/path/key";
         let result = KeyPath::try_from(input).unwrap();
-        assert_eq!(result.path, PathBuf::from("dir/path"));
+        assert_eq!(
+            result.path,
+            PathBuf::from("dir/path").with_extension(YAML_EXTENSION)
+        );
         assert_eq!(result.key, vec!["key"]);
         assert_eq!(input, result.to_string());
     }
@@ -82,7 +110,10 @@ mod tests {
     fn file_and_nested_key() {
         let input = "path/key.nested.value";
         let result = KeyPath::try_from(input).unwrap();
-        assert_eq!(result.path, PathBuf::from("path"));
+        assert_eq!(
+            result.path,
+            PathBuf::from("path").with_extension(YAML_EXTENSION)
+        );
         assert_eq!(result.key, vec!["key", "nested", "value"]);
         assert_eq!(input, result.to_string());
     }
@@ -91,7 +122,10 @@ mod tests {
     fn path_and_nested_key() {
         let input = "dir/path/key.nested.value";
         let result = KeyPath::try_from(input).unwrap();
-        assert_eq!(result.path, PathBuf::from("dir/path"));
+        assert_eq!(
+            result.path,
+            PathBuf::from("dir/path").with_extension(YAML_EXTENSION)
+        );
         assert_eq!(result.key, vec!["key", "nested", "value"]);
         assert_eq!(input, result.to_string());
     }
@@ -100,7 +134,10 @@ mod tests {
     fn file_and_empty_key() {
         let input = "path/";
         let result = KeyPath::try_from(input).unwrap();
-        assert_eq!(result.path, PathBuf::from("path"));
+        assert_eq!(
+            result.path,
+            PathBuf::from("path").with_extension(YAML_EXTENSION)
+        );
         assert_eq!(result.key, Vec::<&str>::new());
         assert_eq!(input, result.to_string());
     }
