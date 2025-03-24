@@ -8,16 +8,14 @@ fn non_key_error(message: &str) -> MiniError {
 }
 
 pub fn get_from_datastore(state: &State, key_path: &str) -> Result<MiniValue, MiniError> {
-    let key_path = KeyPath::try_from(key_path).unwrap();
+    let key_path = KeyPath::try_from(key_path).map_err(|_| non_key_error("invalid key"))?;
 
-    // Lookup datastore. If it exists, convert it from Value to Datastore.
-    // This is kinda terse, but the expanded version isn't really any better.
-    let datastore = state
+    // Lookup datastore. If it exists, convert it from Value to Datastore. Then get the key.
+    // This is kinda terse, but the expanded version isn't really any better IMO.
+    Ok(state
         .lookup("datastore")
         .ok_or(non_key_error("bad datastore"))
-        .and_then(|x| Option::<Datastore>::deserialize(x)?.ok_or(non_key_error("no datastore")))?;
-
-    Ok(datastore
+        .and_then(|x| Option::<Datastore>::deserialize(x)?.ok_or(non_key_error("no datastore")))?
         .get_with_key_vec(&*key_path.path(), &key_path.key_vec())
         .map_err(|_| non_key_error("no key found in datastore"))?)
 }
