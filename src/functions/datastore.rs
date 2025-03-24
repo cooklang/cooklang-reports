@@ -19,5 +19,5 @@ pub fn get_from_datastore(state: &State, key_path: &str) -> Result<MiniValue, Mi
 
     Ok(datastore
         .get_with_key_vec(&*key_path.path(), &key_path.key_vec())
-        .unwrap())
+        .map_err(|_| non_key_error("no key found in datastore"))?)
 }
