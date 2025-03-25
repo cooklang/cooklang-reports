@@ -182,8 +182,6 @@ impl Object for RecipeTemplate {
     }
 }
 
-mod key_path;
-
 pub fn render_template_old(
     recipe: &str,
     template: &str,
@@ -343,12 +341,13 @@ mod tests {
         let template = indoc! {"
             # Eggs Info
 
-            Density: {{ db('eggs/meta.density') }}
-            Shelf Life: {{ db('eggs/meta.storage.shelf life') }} days
-            Fridge Life: {{ db('eggs/meta.storage.fridge life') }} days
+            Density: {{ db('eggs.meta.density') }}
+            Shelf Life: {{ db('eggs.meta.storage.shelf life') }} days
+            Fridge Life: {{ db('eggs.meta.storage.fridge life') }} days
         "};
 
-        let result = render_template_old(&recipe, template, None, Some(&datastore_path)).unwrap();
+        let config = Config::builder().datastore_path(&datastore_path).build();
+        let result = render_recipe_with_config(&recipe, template, &config).unwrap();
         let expected = indoc! {"
             # Eggs Info
 
