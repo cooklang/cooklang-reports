@@ -14,3 +14,11 @@ thiserror = "2.0.12"
 [dev-dependencies]
 indoc = "2.0"
 tempfile = "3.8"
+
+[lints.rust]
+missing_docs = "warn"
+
+[lints.clippy]
+pedantic = "warn"
+unwrap_used = "warn"
+expect_used = "warn"
