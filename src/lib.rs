@@ -1,5 +1,8 @@
 //! A Rust library for generating reports from [Cooklang][00] recipes using [Jinja2][01]-style templates.
 //!
+//! The template format is not yet fully documented.
+//! Look at the tests in the repository for examples.
+//!
 //! [00]: https://cooklang.org/
 //! [01]: https://jinja.palletsprojects.com/en/stable/
 use config::Config;
@@ -35,6 +38,7 @@ struct Ingredient {
     note: Option<String>,
 }
 
+/// Return a vector of [`Ingredient`] for placing in [`RecipeContext`]
 fn recipe_ingredients(recipe: &ScaledRecipe) -> Vec<Ingredient> {
     recipe
         .ingredients
@@ -47,6 +51,9 @@ fn recipe_ingredients(recipe: &ScaledRecipe) -> Vec<Ingredient> {
         .collect()
 }
 
+/// Context passed to the template.
+///
+/// The entire recipe is in here at this moment, flattened, for easy access to its fields.
 #[derive(Serialize)]
 struct RecipeContext {
     #[serde(flatten)]
@@ -59,11 +66,33 @@ struct RecipeContext {
 /// Render a recipe with the deault configuration.
 ///
 /// This is equivalent to calling [`render_recipe_with_config`] with a default [`Config`].
+///
+/// # Errors
+///
+/// Returns [`RecipeParseError`][`Error::RecipeParseError`] if the recipe cannot be parsed by the
+/// [`CooklangParser`][`cooklang::CooklangParser`].
+///
+/// Returns [`TemplateError`][`Error::TemplateError`] if the template has a syntax error or rendering fails.
 pub fn render_recipe(recipe: &str, template: &str) -> Result<String, Error> {
     render_recipe_with_config(recipe, template, &Config::default())
 }
 
 /// Render a recipe to a String with the provided [`Config`].
+///
+/// On success, returns a String with the recipe as rendered by the template.
+///
+/// # Parameters
+///
+/// * `recipe` is a (hopefully valid) cooklang recipe as a string, ready to be parsed.
+/// * `template` is a (hopefully valid) template. Format will be documented in the future.
+/// * `config` is a [`Config`][`config::Config`] with options for rendering the recipe.
+///
+/// # Errors
+///
+/// Returns [`RecipeParseError`][`Error::RecipeParseError`] if the recipe cannot be parsed by the
+/// [`CooklangParser`][`cooklang::CooklangParser`].
+///
+/// Returns [`TemplateError`][`Error::TemplateError`] if the template has a syntax error or rendering fails.
 pub fn render_recipe_with_config(
     recipe: &str,
     template: &str,
