@@ -5,6 +5,7 @@
 //!
 //! [00]: https://cooklang.org/
 //! [01]: https://jinja.palletsprojects.com/en/stable/
+#[doc = include_str!("../README.md")]
 use config::Config;
 use cooklang::{Converter, CooklangParser, Extensions, ScaledRecipe};
 use filters::{format_price_filter, numeric_filter};
