@@ -65,7 +65,7 @@ struct RecipeContext {
 
 /// Render a recipe with the deault configuration.
 ///
-/// This is equivalent to calling [`render_recipe_with_config`] with a default [`Config`].
+/// This is equivalent to calling [`render_template_with_config`] with a default [`Config`].
 ///
 /// # Errors
 ///
@@ -73,8 +73,8 @@ struct RecipeContext {
 /// [`CooklangParser`][`cooklang::CooklangParser`].
 ///
 /// Returns [`TemplateError`][`Error::TemplateError`] if the template has a syntax error or rendering fails.
-pub fn render_recipe(recipe: &str, template: &str) -> Result<String, Error> {
-    render_recipe_with_config(recipe, template, &Config::default())
+pub fn render_template(recipe: &str, template: &str) -> Result<String, Error> {
+    render_template_with_config(recipe, template, &Config::default())
 }
 
 /// Render a recipe to a String with the provided [`Config`].
@@ -93,7 +93,7 @@ pub fn render_recipe(recipe: &str, template: &str) -> Result<String, Error> {
 /// [`CooklangParser`][`cooklang::CooklangParser`].
 ///
 /// Returns [`TemplateError`][`Error::TemplateError`] if the template has a syntax error or rendering fails.
-pub fn render_recipe_with_config(
+pub fn render_template_with_config(
     recipe: &str,
     template: &str,
     config: &Config,
@@ -153,7 +153,7 @@ mod tests {
         "};
 
         // Test default scaling (1x)
-        let result = render_recipe(&recipe, template).unwrap();
+        let result = render_template(&recipe, template).unwrap();
         let expected = indoc! {"
             # Ingredients (1x)
             - eggs
@@ -163,7 +163,7 @@ mod tests {
 
         // Test with 2x scaling, but only for the actual scale number
         let config: Config = Config::builder().scale(2).build();
-        let result = render_recipe_with_config(&recipe, template, &config).unwrap();
+        let result = render_template_with_config(&recipe, template, &config).unwrap();
         let expected = indoc! {"
             # Ingredients (2x)
             - eggs
@@ -189,7 +189,7 @@ mod tests {
         "};
 
         let config = Config::builder().datastore_path(&datastore_path).build();
-        let result = render_recipe_with_config(&recipe, template, &config).unwrap();
+        let result = render_template_with_config(&recipe, template, &config).unwrap();
         let expected = indoc! {"
             # Eggs Info
 
@@ -215,7 +215,7 @@ mod tests {
         "};
 
         // Test default scaling (1x)
-        let result = render_recipe(&recipe, template).unwrap();
+        let result = render_template(&recipe, template).unwrap();
         let expected = indoc! {"
             # Ingredients (1x)
             - eggs: 3 large
@@ -225,7 +225,7 @@ mod tests {
 
         // Test with 2x scaling
         let config = Config::builder().scale(2).build();
-        let result = render_recipe_with_config(&recipe, template, &config).unwrap();
+        let result = render_template_with_config(&recipe, template, &config).unwrap();
         let expected = indoc! {"
             # Ingredients (2x)
             - eggs: 6 large
@@ -235,7 +235,7 @@ mod tests {
 
         // Test with 3x scaling
         let config = Config::builder().scale(3).build();
-        let result = render_recipe_with_config(&recipe, template, &config).unwrap();
+        let result = render_template_with_config(&recipe, template, &config).unwrap();
         let expected = indoc! {"
             # Ingredients (3x)
             - eggs: 9 large
@@ -255,7 +255,7 @@ mod tests {
             .join("ingredients.md.jinja");
         let template = std::fs::read_to_string(template_path).unwrap();
 
-        let result = render_recipe(&recipe, &template).unwrap();
+        let result = render_template(&recipe, &template).unwrap();
         let expected = indoc! {"
             # Ingredients Report
 
@@ -279,7 +279,7 @@ mod tests {
         let template = std::fs::read_to_string(template_path).unwrap();
 
         let config = Config::builder().datastore_path(datastore_path).build();
-        let result = render_recipe_with_config(&recipe, &template, &config).unwrap();
+        let result = render_template_with_config(&recipe, &template, &config).unwrap();
 
         // Verify the report structure and content
         let expected = indoc! {"
