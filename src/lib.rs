@@ -42,6 +42,26 @@ impl From<Recipe<Scaled, Value>> for RecipeTemplate {
     }
 }
 
+/// An Ingredient that's used here instead of the parser's one, for template access.
+#[derive(Serialize)]
+struct Ingredient {
+    name: String,
+    quantity: Option<String>,
+    note: Option<String>,
+}
+
+fn recipe_ingredients(recipe: &ScaledRecipe) -> Vec<Ingredient> {
+    recipe
+        .ingredients
+        .iter()
+        .map(|ingredient| Ingredient {
+            name: ingredient.name.to_string(),
+            quantity: ingredient.quantity.as_ref().map(ToString::to_string),
+            note: ingredient.note.clone(),
+        })
+        .collect()
+}
+
 impl Object for RecipeTemplate {
     fn get_value(self: &Arc<Self>, key: &MiniValue) -> Option<MiniValue> {
         match key.as_str()? {
@@ -241,6 +261,7 @@ struct RecipeContext {
     recipe: ScaledRecipe,
     scale: u32,
     datastore: Option<Datastore>,
+    ingredients: Vec<Ingredient>,
 }
 
 mod config;
@@ -268,16 +289,17 @@ pub fn render_recipe_with_config(
     let mut template_environment = Environment::new();
     template_environment.add_template("base", template)?;
     template_environment.add_function("db", get_from_datastore);
+    template_environment.add_filter("numeric", numeric_filter);
+    template_environment.add_filter("format_price", format_price_filter);
 
-    let datastore = match &config.datastore_path {
-        Some(path) => Some(Datastore::open(path)),
-        None => None,
-    };
+    let datastore = config.datastore_path.as_ref().map(Datastore::open);
+    let ingredients = recipe_ingredients(&recipe);
 
     let context = RecipeContext {
         recipe,
         scale: config.scale,
         datastore,
+        ingredients,
     };
 
     let tmpl = template_environment.get_template("base")?;
@@ -373,7 +395,7 @@ mod tests {
         "};
 
         // Test default scaling (1x)
-        let result = render_template_old(&recipe, template, None, None).unwrap();
+        let result = render_recipe(&recipe, template).unwrap();
         let expected = indoc! {"
             # Ingredients (1x)
             - eggs: 3 large
@@ -382,7 +404,8 @@ mod tests {
         assert_eq!(result, expected);
 
         // Test with 2x scaling
-        let result = render_template_old(&recipe, template, Some(2), None).unwrap();
+        let config = Config::builder().scale(2).build();
+        let result = render_recipe_with_config(&recipe, template, &config).unwrap();
         let expected = indoc! {"
             # Ingredients (2x)
             - eggs: 6 large
@@ -391,7 +414,8 @@ mod tests {
         assert_eq!(result, expected);
 
         // Test with 3x scaling
-        let result = render_template_old(&recipe, template, Some(3), None).unwrap();
+        let config = Config::builder().scale(3).build();
+        let result = render_recipe_with_config(&recipe, template, &config).unwrap();
         let expected = indoc! {"
             # Ingredients (3x)
             - eggs: 9 large
@@ -411,7 +435,7 @@ mod tests {
             .join("ingredients.md.jinja");
         let template = std::fs::read_to_string(template_path).unwrap();
 
-        let result = render_template_old(&recipe, &template, None, None).unwrap();
+        let result = render_recipe(&recipe, &template).unwrap();
         let expected = indoc! {"
             # Ingredients Report
 
@@ -434,7 +458,8 @@ mod tests {
         let template_path = get_test_data_path().join("reports").join("cost.md.jinja");
         let template = std::fs::read_to_string(template_path).unwrap();
 
-        let result = render_template_old(&recipe, &template, None, Some(&datastore_path)).unwrap();
+        let config = Config::builder().datastore_path(datastore_path).build();
+        let result = render_recipe_with_config(&recipe, &template, &config).unwrap();
 
         // Verify the report structure and content
         let expected = indoc! {"
