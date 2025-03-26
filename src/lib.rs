@@ -1,21 +1,28 @@
+//! A Rust library for generating reports from [Cooklang][00] recipes using [Jinja2][01]-style templates.
+//!
+//! [00]: https://cooklang.org/
+//! [01]: https://jinja.palletsprojects.com/en/stable/
 use config::Config;
 use cooklang::{Converter, CooklangParser, Extensions, ScaledRecipe};
+use filters::{format_price_filter, numeric_filter};
+use functions::get_from_datastore;
 use minijinja::Environment;
 use serde::Serialize;
 use thiserror::Error;
 use yaml_datastore::Datastore;
 
+pub mod config;
 mod filters;
 mod functions;
 
-use filters::{format_price_filter, numeric_filter};
-use functions::get_from_datastore;
-
+/// Error type for this crate.
 #[derive(Error, Debug)]
 pub enum Error {
+    /// An error occurred when parsing the recipe.
     #[error("error parsing recipe")]
     RecipeParseError(#[from] cooklang::error::SourceReport),
 
+    /// An error occurred when generating a report from a template.
     #[error("template error")]
     TemplateError(#[from] minijinja::Error),
 }
@@ -49,15 +56,14 @@ struct RecipeContext {
     ingredients: Vec<Ingredient>,
 }
 
-mod config;
-
 /// Render a recipe with the deault configuration.
 ///
-/// This is equivalent to calling [render_recipe_with_config] with a default [Config].
+/// This is equivalent to calling [`render_recipe_with_config`] with a default [`Config`].
 pub fn render_recipe(recipe: &str, template: &str) -> Result<String, Error> {
     render_recipe_with_config(recipe, template, &Config::default())
 }
 
+/// Render a recipe to a String with the provided [`Config`].
 pub fn render_recipe_with_config(
     recipe: &str,
     template: &str,
