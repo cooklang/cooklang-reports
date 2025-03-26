@@ -26,6 +26,7 @@ cooklang-reports = "0.1.0"
 ### Basic Template Rendering
 
 ```rust
+use indoc::indoc;
 use cooklang_reports::render_template;
 
 let recipe = r#"
@@ -41,30 +42,41 @@ let template = indoc! {"
 "};
 
 // Test default scaling (1x)
-let result = render_template(&recipe, template, None, None).unwrap();
+let result = render_template(&recipe, template).unwrap();
 let expected = indoc! {"
     # Ingredients (1x)
     - eggs
     - milk
-    - flour"};
+    - flour
+    - sugar
+    - salt"};
 assert_eq!(result, expected);
 ```
 
 ### Using Datastore
 
 ```rust
+use indoc::indoc;
 use std::path::Path;
+use cooklang_reports::render_template_with_config;
+use cooklang_reports::config::Config;
 
-let datastore_path = Path::new("path/to/datastore");
+let recipe = r#"
+    Mix @eggs{3%large} with @milk{250%ml}, add @flour{125%g} to make batter.
+    Add @sugar{1.5%tbsp} and @salt{1/4%tsp} for flavor.
+"#;
+
+let datastore_path = Path::new("test/data/db");
 let template = indoc! {"
     # Eggs Info
 
-    Density: {{ db('eggs/meta.density') }}
-    Shelf Life: {{ db('eggs/meta.storage.shelf life') }} days
-    Fridge Life: {{ db('eggs/meta.storage.fridge life') }} days
+    Density: {{ db('eggs.meta.density') }}
+    Shelf Life: {{ db('eggs.meta.storage.shelf life') }} days
+    Fridge Life: {{ db('eggs.meta.storage.fridge life') }} days
 "};
 
-let result = render_template(&recipe, template, None, Some(&datastore_path)).unwrap();
+let config = Config::builder().datastore_path(datastore_path).build();
+let result = render_template_with_config(&recipe, template, &config).unwrap();
 let expected = indoc! {"
     # Eggs Info
 
@@ -86,8 +98,8 @@ assert_eq!(result, expected);
 ### Built-in Functions
 
 - `db(key_path)`: Access data from the YAML datastore
-  - Format: `directory/file.key.subkey`
-  - Example: `db('eggs/meta.storage.shelf life')`
+  - Format: `directory.file.key.subkey`
+  - Example: `db('eggs.meta.storage.shelf life')`
 
 ### Built-in Filters
 
@@ -96,7 +108,7 @@ assert_eq!(result, expected);
 
 ## Project Structure
 
-```
+```text
 src/
 ├── lib.rs           # Main library code
 ├── filters/         # Template filters
@@ -111,7 +123,7 @@ src/
 
 The datastore is a directory of YAML files organized by ingredient:
 
-```
+```text
 datastore/
 ├── eggs/
 │   ├── meta.yml

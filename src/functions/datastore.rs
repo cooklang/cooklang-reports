@@ -1,27 +1,18 @@
-use minijinja::{Error as MiniError, State, Value as MiniValue};
+use minijinja::{Error as MiniError, ErrorKind, State, Value as MiniValue};
+use serde::Deserialize;
+use yaml_datastore::Datastore;
 
-pub fn get_from_datastore(state: &State, args: &[MiniValue]) -> Result<MiniValue, MiniError> {
-    if args.len() != 1 {
-        return Err(MiniError::new(
-            minijinja::ErrorKind::InvalidOperation,
-            "db requires exactly 1 argument: key-path",
-        ));
-    }
+fn non_key_error(message: &str) -> MiniError {
+    MiniError::new(ErrorKind::NonKey, message.to_owned())
+}
 
-    // Validate that the argument is a string, but we don't need to store it
-    args[0].as_str().ok_or_else(|| {
-        MiniError::new(
-            minijinja::ErrorKind::InvalidOperation,
-            "argument must be a string (key-path)",
-        )
-    })?;
-
-    let recipe_template = state.lookup("recipe_template").ok_or_else(|| {
-        MiniError::new(
-            minijinja::ErrorKind::InvalidOperation,
-            "recipe_template not found in context",
-        )
-    })?;
-
-    recipe_template.call_method(state, "db", args)
+pub fn get_from_datastore(state: &State, keypath: &str) -> Result<MiniValue, MiniError> {
+    // Lookup datastore. If it exists, convert it from Value to Datastore. Then get the key.
+    // This is kinda terse, but the expanded version isn't really any better IMO.
+    state
+        .lookup("datastore")
+        .ok_or(non_key_error("bad datastore"))
+        .and_then(|x| Option::<Datastore>::deserialize(x)?.ok_or(non_key_error("no datastore")))?
+        .get(keypath)
+        .map_err(|_| non_key_error("no key found in datastore"))
 }
