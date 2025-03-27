@@ -14,10 +14,10 @@ use std::path::PathBuf;
 ///
 /// ```
 /// use cooklang_reports::config::Config;
-/// let config = Config::builder().scale(2).datastore_path("db").build();
+/// let config = Config::builder().scale(2.0).datastore_path("db").build();
 /// ```
 pub struct Config {
-    pub(crate) scale: u32,
+    pub(crate) scale: f64,
     pub(crate) datastore_path: Option<PathBuf>,
 }
 
@@ -25,7 +25,7 @@ impl Default for Config {
     /// Return a default [`Config`] with a scale of 1 and no datastore path.
     fn default() -> Self {
         Self {
-            scale: 1,
+            scale: 1.0,
             datastore_path: None,
         }
     }
@@ -41,7 +41,7 @@ impl Config {
 
 /// Builder for building a [`Config`].
 pub struct ConfigBuilder {
-    scale: u32,
+    scale: f64,
     datastore_path: Option<PathBuf>,
 }
 
@@ -49,7 +49,7 @@ impl Default for ConfigBuilder {
     /// Return a default [`ConfigBuilder`] with a scale of 1 and no datastore path.
     fn default() -> Self {
         Self {
-            scale: 1,
+            scale: 1.0,
             datastore_path: None,
         }
     }
@@ -57,7 +57,7 @@ impl Default for ConfigBuilder {
 
 impl ConfigBuilder {
     /// Set the scale property. This is used in recipe scaling and is itself passed to the template.
-    pub fn scale(&mut self, scale: u32) -> &mut Self {
+    pub fn scale(&mut self, scale: f64) -> &mut Self {
         self.scale = scale;
         self
     }

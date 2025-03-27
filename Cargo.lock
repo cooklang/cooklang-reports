@@ -31,9 +31,9 @@ checksum = "2205f7f6d3de68ecf4c291c789b3edf07b6569268abd0188819086f71ae42225"
 
 [[package]]
 name = "cooklang"
-version = "0.15.0"
+version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4e32d18963bbb38f01afc061a1f63370856fc385a035f27bf2643a7e39ee9a70"
+checksum = "9880b378844ef7a5c501da90b0b908cd668af23ee007f07699966f7810907e33"
 dependencies = [
  "bitflags",
  "codesnake",
