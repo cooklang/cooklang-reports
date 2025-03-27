@@ -242,6 +242,16 @@ mod tests {
             - milk: 750 ml
             - flour: 375 g"};
         assert_eq!(result, expected);
+
+        // Test with 0.5x scaling
+        let config = Config::builder().scale(0.5).build();
+        let result = render_template_with_config(&recipe, template, &config).unwrap();
+        let expected = indoc! {"
+            # Ingredients (0.5x)
+            - eggs: 1.5 large
+            - milk: 125 ml
+            - flour: 62.5 g"};
+        assert_eq!(result, expected);
     }
 
     #[test]
