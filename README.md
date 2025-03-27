@@ -44,7 +44,7 @@ let template = indoc! {"
 // Test default scaling (1x)
 let result = render_template(&recipe, template).unwrap();
 let expected = indoc! {"
-    # Ingredients (1x)
+    # Ingredients (1.0x)
     - eggs
     - milk
     - flour

@@ -59,7 +59,7 @@ fn recipe_ingredients(recipe: &ScaledRecipe) -> Vec<Ingredient> {
 struct RecipeContext {
     #[serde(flatten)]
     recipe: ScaledRecipe,
-    scale: u32,
+    scale: f64,
     datastore: Option<Datastore>,
     ingredients: Vec<Ingredient>,
 }
@@ -156,17 +156,17 @@ mod tests {
         // Test default scaling (1x)
         let result = render_template(&recipe, template).unwrap();
         let expected = indoc! {"
-            # Ingredients (1x)
+            # Ingredients (1.0x)
             - eggs
             - milk
             - flour"};
         assert_eq!(result, expected);
 
         // Test with 2x scaling, but only for the actual scale number
-        let config: Config = Config::builder().scale(2).build();
+        let config: Config = Config::builder().scale(2.0).build();
         let result = render_template_with_config(&recipe, template, &config).unwrap();
         let expected = indoc! {"
-            # Ingredients (2x)
+            # Ingredients (2.0x)
             - eggs
             - milk
             - flour"};
@@ -202,7 +202,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "need to update parser builder to support scaling"]
     fn test_recipe_scaling() {
         // Use Pancakes.cook from test data
         let recipe_path = get_test_data_path().join("recipes").join("Pancakes.cook");
@@ -218,30 +217,40 @@ mod tests {
         // Test default scaling (1x)
         let result = render_template(&recipe, template).unwrap();
         let expected = indoc! {"
-            # Ingredients (1x)
+            # Ingredients (1.0x)
             - eggs: 3 large
             - milk: 250 ml
             - flour: 125 g"};
         assert_eq!(result, expected);
 
         // Test with 2x scaling
-        let config = Config::builder().scale(2).build();
+        let config = Config::builder().scale(2.0).build();
         let result = render_template_with_config(&recipe, template, &config).unwrap();
         let expected = indoc! {"
-            # Ingredients (2x)
+            # Ingredients (2.0x)
             - eggs: 6 large
             - milk: 500 ml
             - flour: 250 g"};
         assert_eq!(result, expected);
 
         // Test with 3x scaling
-        let config = Config::builder().scale(3).build();
+        let config = Config::builder().scale(3.0).build();
         let result = render_template_with_config(&recipe, template, &config).unwrap();
         let expected = indoc! {"
-            # Ingredients (3x)
+            # Ingredients (3.0x)
             - eggs: 9 large
             - milk: 750 ml
             - flour: 375 g"};
+        assert_eq!(result, expected);
+
+        // Test with 0.5x scaling
+        let config = Config::builder().scale(0.5).build();
+        let result = render_template_with_config(&recipe, template, &config).unwrap();
+        let expected = indoc! {"
+            # Ingredients (0.5x)
+            - eggs: 1.5 large
+            - milk: 125 ml
+            - flour: 62.5 g"};
         assert_eq!(result, expected);
     }
 
