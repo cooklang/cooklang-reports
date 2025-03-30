@@ -88,6 +88,7 @@ struct RecipeContext {
     datastore: Option<Datastore>,
     ingredients: Vec<Ingredient>,
     cookware: Vec<Cookware>,
+    // metadata accessible through flattened recipe since it's a serde_yaml::Mapping
 }
 
 /// Render a recipe with the deault configuration.
@@ -360,6 +361,27 @@ mod tests {
             # Cookware
             - whisk (1x)
             - large bowl (1x)"};
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn metadata() {
+        // Use Pancakes.cook from test data
+        let recipe_path = get_test_data_path().join("recipes").join("Pancakes.cook");
+        let recipe = std::fs::read_to_string(recipe_path).unwrap();
+
+        let template: &str = indoc! {"
+            # Metadata
+            {%- for key, value in metadata.map | items %}
+            - {{ key }}: {{ value }}
+            {%- endfor %}
+        "};
+
+        let result = render_template(&recipe, template).unwrap();
+        let expected = indoc! {"
+            # Metadata
+            - title: Pancakes
+            - author: dubadub"};
         assert_eq!(result, expected);
     }
 }
