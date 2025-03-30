@@ -7,7 +7,7 @@
 //! [01]: https://jinja.palletsprojects.com/en/stable/
 #[doc = include_str!("../README.md")]
 use config::Config;
-use cooklang::{Converter, CooklangParser, Extensions, ScaledRecipe};
+use cooklang::{Converter, CooklangParser, Extensions, ScaledRecipe, quantity::QuantityValue};
 use filters::{format_price_filter, numeric_filter};
 use functions::get_from_datastore;
 use minijinja::Environment;
@@ -39,17 +39,42 @@ struct Ingredient {
     note: Option<String>,
 }
 
+impl<V: QuantityValue> From<&cooklang::model::Ingredient<V>> for Ingredient {
+    fn from(value: &cooklang::model::Ingredient<V>) -> Self {
+        Ingredient {
+            name: value.name.to_string(),
+            quantity: value.quantity.as_ref().map(ToString::to_string),
+            note: value.note.clone(),
+        }
+    }
+}
+
 /// Return a vector of [`Ingredient`] for placing in [`RecipeContext`]
 fn recipe_ingredients(recipe: &ScaledRecipe) -> Vec<Ingredient> {
-    recipe
-        .ingredients
-        .iter()
-        .map(|ingredient| Ingredient {
-            name: ingredient.name.to_string(),
-            quantity: ingredient.quantity.as_ref().map(ToString::to_string),
-            note: ingredient.note.clone(),
-        })
-        .collect()
+    recipe.ingredients.iter().map(Ingredient::from).collect()
+}
+
+#[derive(Serialize)]
+struct Cookware {
+    name: String,
+    quantity: String,
+}
+
+impl From<&cooklang::model::Cookware> for Cookware {
+    fn from(value: &cooklang::model::Cookware) -> Self {
+        Cookware {
+            name: value.name.to_string(),
+            quantity: value
+                .quantity
+                .as_ref()
+                .map_or("1".into(), ToString::to_string),
+        }
+    }
+}
+
+/// Return a vector of [`Cookware`] for placing in [`RecipeContext`]
+fn recipe_cookware(recipe: &ScaledRecipe) -> Vec<Cookware> {
+    recipe.cookware.iter().map(Cookware::from).collect()
 }
 
 /// Context passed to the template.
@@ -62,6 +87,7 @@ struct RecipeContext {
     scale: f64,
     datastore: Option<Datastore>,
     ingredients: Vec<Ingredient>,
+    cookware: Vec<Cookware>,
 }
 
 /// Render a recipe with the deault configuration.
@@ -115,12 +141,14 @@ pub fn render_template_with_config(
 
     let datastore = config.datastore_path.as_ref().map(Datastore::open);
     let ingredients = recipe_ingredients(&recipe);
+    let cookware = recipe_cookware(&recipe);
 
     let context = RecipeContext {
         recipe,
         scale: config.scale,
         datastore,
         ingredients,
+        cookware,
     };
 
     let tmpl = template_environment.get_template("base")?;
@@ -301,6 +329,37 @@ mod tests {
 
             Total: $1.19"};
 
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn cookware() {
+        // Use Pancakes.cook from test data
+        let recipe_path = get_test_data_path().join("recipes").join("Pancakes.cook");
+        let recipe = std::fs::read_to_string(recipe_path).unwrap();
+
+        let template: &str = indoc! {"
+            # Cookware
+            {%- for item in cookware %}
+            - {{ item.name }} ({{ item.quantity }}x)
+            {%- endfor %}
+        "};
+
+        // Test default scaling (1x)
+        let result = render_template(&recipe, template).unwrap();
+        let expected = indoc! {"
+            # Cookware
+            - whisk (1x)
+            - large bowl (1x)"};
+        assert_eq!(result, expected);
+
+        // Test with 2x scaling, which should not change cookware amounts
+        let config: Config = Config::builder().scale(2.0).build();
+        let result = render_template_with_config(&recipe, template, &config).unwrap();
+        let expected = indoc! {"
+            # Cookware
+            - whisk (1x)
+            - large bowl (1x)"};
         assert_eq!(result, expected);
     }
 }
