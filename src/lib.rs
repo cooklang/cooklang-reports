@@ -7,7 +7,10 @@
 //! [01]: https://jinja.palletsprojects.com/en/stable/
 #[doc = include_str!("../README.md")]
 use config::Config;
-use cooklang::{Converter, CooklangParser, Extensions, ScaledRecipe, quantity::QuantityValue};
+use cooklang::{
+    Converter, CooklangParser, Extensions, Metadata, ScaledRecipe, model::Cookware,
+    quantity::QuantityValue,
+};
 use filters::{format_price_filter, numeric_filter};
 use functions::get_from_datastore;
 use minijinja::Environment;
@@ -32,7 +35,7 @@ pub enum Error {
 }
 
 /// An Ingredient that's used here instead of the parser's one, for template access.
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 struct Ingredient<'a> {
     name: &'a str,
     quantity: Option<String>,
@@ -47,35 +50,25 @@ impl<'a, V: QuantityValue> From<&'a cooklang::Ingredient<V>> for Ingredient<'a> 
     }
 }
 
-#[derive(Serialize)]
-struct Cookware<'a> {
-    name: &'a str,
-}
-
-impl<'a> From<&'a cooklang::Cookware> for Cookware<'a> {
-    fn from(value: &'a cooklang::Cookware) -> Self {
-        Cookware { name: &value.name }
-    }
-}
 /// Context passed to the template.
 ///
 /// The entire recipe is in here at this moment, flattened, for easy access to its fields.
-#[derive(Serialize)]
-struct RecipeContext<'a> {
+#[derive(Debug, Serialize)]
+struct TemplateContext<'a> {
     scale: f64,
     datastore: Option<Datastore>,
     ingredients: Vec<Ingredient<'a>>,
-    cookware: Vec<Cookware<'a>>,
-    metadata: &'a cooklang::Metadata,
+    cookware: &'a Vec<Cookware>,
+    metadata: &'a Metadata,
 }
 
-impl RecipeContext<'_> {
-    fn new(recipe: &ScaledRecipe, scale: f64, datastore: Option<Datastore>) -> RecipeContext {
-        RecipeContext {
+impl TemplateContext<'_> {
+    fn new(recipe: &ScaledRecipe, scale: f64, datastore: Option<Datastore>) -> TemplateContext {
+        TemplateContext {
             scale,
             datastore,
             ingredients: recipe.ingredients.iter().map(Ingredient::from).collect(),
-            cookware: recipe.cookware.iter().map(Cookware::from).collect(),
+            cookware: &recipe.cookware,
             metadata: &recipe.metadata,
         }
     }
@@ -124,7 +117,7 @@ pub fn render_template_with_config(
     let recipe = unscaled_recipe.scale(config.scale, &Converter::default());
     let datastore = config.datastore_path.as_ref().map(Datastore::open);
 
-    let template_context = RecipeContext::new(&recipe, config.scale, datastore);
+    let template_context = TemplateContext::new(&recipe, config.scale, datastore);
     let template_environment = template_environment(template)?;
 
     let template: minijinja::Template<'_, '_> = template_environment.get_template("base")?;
@@ -345,7 +338,9 @@ mod tests {
     #[test]
     fn metadata() {
         // Use Pancakes.cook from test data
-        let recipe_path = get_test_data_path().join("recipes").join("Pancakes.cook");
+        let recipe_path = get_test_data_path()
+            .join("recipes")
+            .join("Chinese Udon Noodles.cook");
         let recipe = std::fs::read_to_string(recipe_path).unwrap();
 
         let template: &str = indoc! {"
@@ -358,8 +353,36 @@ mod tests {
         let result = render_template(&recipe, template).unwrap();
         let expected = indoc! {"
             # Metadata
-            - title: Pancakes
-            - author: dubadub"};
+            - title: Chinese-Style Udon Noodles
+            - description: A quick, simple, yet satisfying take on a Chinese-style noodle dish.
+            - author: Dan Fego
+            - servings: 2
+            - tags: [\"vegan\"]"};
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    #[ignore = "not yet implemented"]
+    fn steps() {
+        let recipe_path = get_test_data_path()
+            .join("recipes")
+            .join("Contrived Eggs.cook");
+        let recipe = std::fs::read_to_string(recipe_path).unwrap();
+
+        let template: &str = indoc! {"
+            # Steps
+            {%- for step in steps %}
+              {{ step }}
+            {%- endfor %}
+        "};
+
+        let result = render_template(&recipe, template).unwrap();
+        let expected = indoc! {"
+            # Steps
+            1. Put butter into frying pan on low heat.
+            2. Crack egg into pan.
+            3. Fry egg on low heat until cooked.
+            4. Enjoy."};
         assert_eq!(result, expected);
     }
 }
