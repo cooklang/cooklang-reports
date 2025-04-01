@@ -33,62 +33,52 @@ pub enum Error {
 
 /// An Ingredient that's used here instead of the parser's one, for template access.
 #[derive(Serialize)]
-struct Ingredient {
-    name: String,
+struct Ingredient<'a> {
+    name: &'a str,
     quantity: Option<String>,
-    note: Option<String>,
 }
 
-impl<V: QuantityValue> From<&cooklang::model::Ingredient<V>> for Ingredient {
-    fn from(value: &cooklang::model::Ingredient<V>) -> Self {
+impl<'a, V: QuantityValue> From<&'a cooklang::Ingredient<V>> for Ingredient<'a> {
+    fn from(value: &'a cooklang::Ingredient<V>) -> Self {
         Ingredient {
-            name: value.name.to_string(),
+            name: &value.name,
             quantity: value.quantity.as_ref().map(ToString::to_string),
-            note: value.note.clone(),
         }
     }
-}
-
-/// Return a vector of [`Ingredient`] for placing in [`RecipeContext`]
-fn recipe_ingredients(recipe: &ScaledRecipe) -> Vec<Ingredient> {
-    recipe.ingredients.iter().map(Ingredient::from).collect()
 }
 
 #[derive(Serialize)]
-struct Cookware {
-    name: String,
-    quantity: String,
+struct Cookware<'a> {
+    name: &'a str,
 }
 
-impl From<&cooklang::model::Cookware> for Cookware {
-    fn from(value: &cooklang::model::Cookware) -> Self {
-        Cookware {
-            name: value.name.to_string(),
-            quantity: value
-                .quantity
-                .as_ref()
-                .map_or("1".into(), ToString::to_string),
-        }
+impl<'a> From<&'a cooklang::Cookware> for Cookware<'a> {
+    fn from(value: &'a cooklang::Cookware) -> Self {
+        Cookware { name: &value.name }
     }
 }
-
-/// Return a vector of [`Cookware`] for placing in [`RecipeContext`]
-fn recipe_cookware(recipe: &ScaledRecipe) -> Vec<Cookware> {
-    recipe.cookware.iter().map(Cookware::from).collect()
-}
-
 /// Context passed to the template.
 ///
 /// The entire recipe is in here at this moment, flattened, for easy access to its fields.
 #[derive(Serialize)]
-struct RecipeContext {
-    #[serde(flatten)]
-    recipe: ScaledRecipe,
+struct RecipeContext<'a> {
     scale: f64,
     datastore: Option<Datastore>,
-    ingredients: Vec<Ingredient>,
-    cookware: Vec<Cookware>,
-    // metadata accessible through flattened recipe since it's a serde_yaml::Mapping
+    ingredients: Vec<Ingredient<'a>>,
+    cookware: Vec<Cookware<'a>>,
+    metadata: &'a cooklang::Metadata,
+}
+
+impl RecipeContext<'_> {
+    fn new(recipe: &ScaledRecipe, scale: f64, datastore: Option<Datastore>) -> RecipeContext {
+        RecipeContext {
+            scale,
+            datastore,
+            ingredients: recipe.ingredients.iter().map(Ingredient::from).collect(),
+            cookware: recipe.cookware.iter().map(Cookware::from).collect(),
+            metadata: &recipe.metadata,
+        }
+    }
 }
 
 /// Render a recipe with the deault configuration.
@@ -130,30 +120,25 @@ pub fn render_template_with_config(
     let recipe_parser = CooklangParser::new(Extensions::all(), Converter::default());
     let (unscaled_recipe, _warnings) = recipe_parser.parse(recipe).into_result()?;
 
-    // Create final, scaled recipe
-    let converter = Converter::default();
-    let recipe = unscaled_recipe.scale(config.scale, &converter);
-
-    let mut template_environment = Environment::new();
-    template_environment.add_template("base", template)?;
-    template_environment.add_function("db", get_from_datastore);
-    template_environment.add_filter("numeric", numeric_filter);
-    template_environment.add_filter("format_price", format_price_filter);
-
+    // Create final, scaled recipes
+    let recipe = unscaled_recipe.scale(config.scale, &Converter::default());
     let datastore = config.datastore_path.as_ref().map(Datastore::open);
-    let ingredients = recipe_ingredients(&recipe);
-    let cookware = recipe_cookware(&recipe);
 
-    let context = RecipeContext {
-        recipe,
-        scale: config.scale,
-        datastore,
-        ingredients,
-        cookware,
-    };
+    let template_context = RecipeContext::new(&recipe, config.scale, datastore);
+    let template_environment = template_environment(template)?;
 
-    let tmpl = template_environment.get_template("base")?;
-    Ok(tmpl.render(context)?)
+    let template: minijinja::Template<'_, '_> = template_environment.get_template("base")?;
+    Ok(template.render(template_context)?)
+}
+
+/// Build an environment for the given template.
+fn template_environment(template: &str) -> Result<Environment<'_>, Error> {
+    let mut env = Environment::new();
+    env.add_template("base", template)?;
+    env.add_function("db", get_from_datastore);
+    env.add_filter("numeric", numeric_filter);
+    env.add_filter("format_price", format_price_filter);
+    Ok(env)
 }
 
 #[cfg(test)]
@@ -342,7 +327,7 @@ mod tests {
         let template: &str = indoc! {"
             # Cookware
             {%- for item in cookware %}
-            - {{ item.name }} ({{ item.quantity }}x)
+            - {{ item.name }}
             {%- endfor %}
         "};
 
@@ -350,18 +335,11 @@ mod tests {
         let result = render_template(&recipe, template).unwrap();
         let expected = indoc! {"
             # Cookware
-            - whisk (1x)
-            - large bowl (1x)"};
+            - whisk
+            - large bowl"};
         assert_eq!(result, expected);
 
-        // Test with 2x scaling, which should not change cookware amounts
-        let config: Config = Config::builder().scale(2.0).build();
-        let result = render_template_with_config(&recipe, template, &config).unwrap();
-        let expected = indoc! {"
-            # Cookware
-            - whisk (1x)
-            - large bowl (1x)"};
-        assert_eq!(result, expected);
+        // TODO scaling? should it? No, right?
     }
 
     #[test]
