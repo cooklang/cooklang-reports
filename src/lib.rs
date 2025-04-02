@@ -8,7 +8,7 @@
 #[doc = include_str!("../README.md")]
 use config::Config;
 use cooklang::{
-    Converter, CooklangParser, Extensions, Metadata, Quantity, ScaledRecipe, model::Cookware,
+    Converter, CooklangParser, Cookware, Extensions, Metadata, Quantity, ScaledRecipe, Section,
 };
 use filters::{format_price_filter, numeric_filter};
 use functions::get_from_datastore;
@@ -60,7 +60,7 @@ impl<'a> From<&'a cooklang::Ingredient> for Ingredient<'a> {
     fn from(value: &'a cooklang::Ingredient) -> Self {
         Ingredient {
             name: &value.name,
-            quantity: &value.quantity, // quantity: value.quantity.as_ref().map(ToString::to_string),
+            quantity: &value.quantity,
         }
     }
 }
@@ -70,6 +70,7 @@ impl<'a> From<&'a cooklang::Ingredient> for Ingredient<'a> {
 struct TemplateContext<'a> {
     scale: f64,
     datastore: Option<Datastore>,
+    sections: &'a Vec<Section>,
     ingredients: Vec<Ingredient<'a>>,
     cookware: &'a Vec<Cookware>,
     metadata: &'a Metadata,
@@ -80,6 +81,7 @@ impl TemplateContext<'_> {
         TemplateContext {
             scale,
             datastore,
+            sections: &recipe.sections,
             ingredients: recipe.ingredients.iter().map(Ingredient::from).collect(),
             cookware: &recipe.cookware,
             metadata: &recipe.metadata,
@@ -371,6 +373,50 @@ mod tests {
             - author: Dan Fego
             - servings: 2
             - tags: [\"vegan\"]"};
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn sections() {
+        let recipe_path = get_test_data_path()
+            .join("recipes")
+            .join("Contrived Eggs.cook");
+        let recipe = std::fs::read_to_string(recipe_path).unwrap();
+
+        let template: &str = indoc! {"
+            # Recipe
+            {%- for section in sections %}
+            ## {{ section.name }}
+            {%- endfor %}
+        "};
+
+        let result = render_template(&recipe, template).unwrap();
+        let expected = indoc! {"
+            # Recipe
+            ## Preparation
+            ## Cooking
+            ## Consumption"};
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn sections_default() {
+        let recipe_path = get_test_data_path().join("recipes").join("Pancakes.cook");
+        let recipe = std::fs::read_to_string(recipe_path).unwrap();
+
+        let template: &str = indoc! {"
+            # Recipe
+            {%- for section in sections %}
+            {% if section.name %}
+            ## {{ section.name }}
+            {% endif %}
+            {%- endfor %}
+        "};
+
+        let result = render_template(&recipe, template).unwrap();
+        let expected = indoc! {"
+        # Recipe
+        "};
         assert_eq!(result, expected);
     }
 
