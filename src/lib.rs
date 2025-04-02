@@ -50,9 +50,7 @@ impl<'a, V: QuantityValue> From<&'a cooklang::Ingredient<V>> for Ingredient<'a> 
     }
 }
 
-/// Context passed to the template.
-///
-/// The entire recipe is in here at this moment, flattened, for easy access to its fields.
+/// Context passed to the template
 #[derive(Debug, Serialize)]
 struct TemplateContext<'a> {
     scale: f64,
