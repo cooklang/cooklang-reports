@@ -8,13 +8,12 @@
 #[doc = include_str!("../README.md")]
 use config::Config;
 use cooklang::{
-    Converter, CooklangParser, Extensions, Metadata, ScaledRecipe, model::Cookware,
-    quantity::QuantityValue,
+    Converter, CooklangParser, Extensions, Metadata, Quantity, ScaledRecipe, model::Cookware,
 };
 use filters::{format_price_filter, numeric_filter};
 use functions::get_from_datastore;
 use minijinja::Environment;
-use serde::Serialize;
+use serde::{Serialize, Serializer};
 use thiserror::Error;
 use yaml_datastore::Datastore;
 
@@ -34,18 +33,34 @@ pub enum Error {
     TemplateError(#[from] minijinja::Error),
 }
 
+// Because this is getting invoked automatically, I don't think I can fix this lint.
+#[allow(clippy::ref_option)]
+fn quantity_to_string<S>(value: &Option<Quantity>, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    serializer.serialize_str(
+        match value.as_ref() {
+            Some(quantity) => quantity.to_string(),
+            None => String::new(),
+        }
+        .as_str(),
+    )
+}
+
 /// An Ingredient that's used here instead of the parser's one, for template access.
 #[derive(Debug, Serialize)]
 struct Ingredient<'a> {
     name: &'a str,
-    quantity: Option<String>,
+    #[serde(serialize_with = "quantity_to_string")]
+    quantity: &'a Option<Quantity>,
 }
 
-impl<'a, V: QuantityValue> From<&'a cooklang::Ingredient<V>> for Ingredient<'a> {
-    fn from(value: &'a cooklang::Ingredient<V>) -> Self {
+impl<'a> From<&'a cooklang::Ingredient> for Ingredient<'a> {
+    fn from(value: &'a cooklang::Ingredient) -> Self {
         Ingredient {
             name: &value.name,
-            quantity: value.quantity.as_ref().map(ToString::to_string),
+            quantity: &value.quantity, // quantity: value.quantity.as_ref().map(ToString::to_string),
         }
     }
 }
