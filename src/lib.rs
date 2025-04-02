@@ -462,7 +462,7 @@ mod tests {
 
     #[test]
     #[ignore = "not yet implemented"]
-    fn steps() {
+    fn sections_with_steps() {
         let recipe_path = get_test_data_path()
             .join("recipes")
             .join("Contrived Eggs.cook");
