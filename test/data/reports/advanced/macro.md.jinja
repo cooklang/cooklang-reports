@@ -1,0 +1,69 @@
+# Macro Nutritional Analysis
+
+## Overview
+This report provides the total macro nutrients (proteins, fats, and carbohydrates) for the recipe.
+
+## Total Recipe Macros
+
+{# matrix approax #}
+
+(ingredients | attr("name") | db('.macro', attrs=["energy","proteins","fats","carbs","fiber"]))
+=> [543, 27, 14, 58, 1],...]
+* (ingredients | attr("quantity") | portiosn)
+=>
+|
+
+{# naive approach #}
+
+{% set total_energy = 0 %}
+{% set total_proteins = 0 %}
+{% set total_fats = 0 %}
+{% set total_carbs = 0 %}
+{% set total_fiber = 0 %}
+
+{% for ingredient in recipe.ingredients %}
+{% set energy = db(ingredient.name ~ '.macro.energy') %}
+{% set proteins = db(ingredient.name ~ '.macro.proteins') %}
+{% set fats = db(ingredient.name ~ '.macro.fats') %}
+{% set carbs = db(ingredient.name ~ '.macro.carbs') %}
+{% set fiber = db(ingredient.name ~ '.macro.fiber') %}
+
+{% set total_energy = total_energy + (energy * ingredient.amount / 100) %}
+{% set total_proteins = total_proteins + (proteins * ingredient.amount / 100) %}
+{% set total_fats = total_fats + (fats * ingredient.amount / 100) %}
+{% set total_carbs = total_carbs + (carbs * ingredient.amount / 100) %}
+{% set total_fiber = total_fiber + (fiber * ingredient.amount / 100) %}
+{% endfor %}
+
+
+{% set energy = recipe.ingredients | db(ingredient.name ~ 'macro') * quantity_portions(ingredient.quantity, 100, "g") | sum %}
+{% set proteins = recipe.ingredients | attr('name') | db('macro.proteins') | sum %}
+{% set fats = recipe.ingredients | attr('name') | db('macro.fats') | sum %}
+{% set carbs = recipe.ingredients | attr('name') | db('macro.carbs') | sum %}
+{% set fiber = recipe.ingredients | attr('name') | db('macro.fiber') | sum %}
+
+
+### Total Values
+- Energy: {{ energy | round(2) }} kcal
+- Proteins: {{ proteins | round(2) }} g
+- Fats: {{ fats | round(2) }} g
+- Carbohydrates: {{ carbs | round(2) }} g
+- Fiber: {{ fiber | round(2) }} g
+
+### Per Serving ({{ recipe.servings }} servings)
+- Energy: {{ (energy / recipe.servings) | round(2) }} kcal
+- Proteins: {{ (proteins / recipe.servings) | round(2) }} g
+- Fats: {{ (fats / recipe.servings) | round(2) }} g
+- Carbohydrates: {{ (carbs / recipe.servings) | round(2) }} g
+- Fiber: {{ (fiber / recipe.servings) | round(2) }} g
+
+{% set macros = proteins + fats + carbs %}
+{% if macros > 0 %}
+## Macro Distribution
+```mermaid
+pie title Macro Distribution
+    "Proteins" : {{ ((proteins / macros) * 100) | round(1) }}
+    "Fats" : {{ ((fats / macros) * 100) | round(1) }}
+    "Carbs" : {{ ((carbs / macros) * 100) | round(1) }}
+```
+{% endif %}
