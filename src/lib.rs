@@ -428,7 +428,7 @@ mod tests {
         // I hate the nesting in this template but I couldn't get the whitespace
         // modifiers to work the way I want. I hate jinja whitespace.
         let template: &str = indoc! {"
-        # Recipe
+        # Blog
         {%- for section in sections %}
         {% if section.name %}
         ## {{ section.name }}
@@ -445,7 +445,7 @@ mod tests {
         let result = render_template(&recipe, template).unwrap();
         println!("{result}");
         let expected = indoc! {"
-        # Recipe
+        # Blog
 
         ## My Life Story
 
