@@ -421,6 +421,46 @@ mod tests {
     }
 
     #[test]
+    fn sections_with_text() {
+        let recipe_path = get_test_data_path().join("recipes").join("Blog Post.cook");
+        let recipe = std::fs::read_to_string(recipe_path).unwrap();
+
+        // I hate the nesting in this template but I couldn't get the whitespace
+        // modifiers to work the way I want. I hate jinja whitespace.
+        let template: &str = indoc! {"
+        # Recipe
+        {%- for section in sections %}
+        {% if section.name %}
+        ## {{ section.name }}
+        {% endif %}
+        {% for text in section.content -%}
+        {{ text.value }}
+        {%- if not loop.last %}
+
+        {% endif -%}
+        {% endfor -%}
+        {%- endfor %}\n
+        "};
+
+        let result = render_template(&recipe, template).unwrap();
+        println!("{result}");
+        let expected = indoc! {"
+        # Recipe
+
+        ## My Life Story
+
+        This is a blog post about something.
+
+        It has many paragraphs.
+
+        ## Recipe
+
+        Nope, just kidding.
+        "};
+        assert_eq!(result, expected);
+    }
+
+    #[test]
     #[ignore = "not yet implemented"]
     fn steps() {
         let recipe_path = get_test_data_path()
