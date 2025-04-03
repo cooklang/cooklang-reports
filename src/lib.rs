@@ -7,19 +7,19 @@
 //! [01]: https://jinja.palletsprojects.com/en/stable/
 #[doc = include_str!("../README.md")]
 use config::Config;
-use cooklang::{
-    Converter, CooklangParser, Cookware, Extensions, Metadata, Quantity, ScaledRecipe, Section,
-};
+use cooklang::{Converter, CooklangParser, Cookware, Extensions, Metadata, ScaledRecipe, Section};
 use filters::{format_price_filter, numeric_filter};
 use functions::get_from_datastore;
 use minijinja::Environment;
-use serde::{Serialize, Serializer};
+use model::Ingredient;
+use serde::Serialize;
 use thiserror::Error;
 use yaml_datastore::Datastore;
 
 pub mod config;
 mod filters;
 mod functions;
+mod model;
 
 /// Error type for this crate.
 #[derive(Error, Debug)]
@@ -31,38 +31,6 @@ pub enum Error {
     /// An error occurred when generating a report from a template.
     #[error("template error")]
     TemplateError(#[from] minijinja::Error),
-}
-
-// Because this is getting invoked automatically, I don't think I can fix this lint.
-#[allow(clippy::ref_option)]
-fn quantity_to_string<S>(value: &Option<Quantity>, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    serializer.serialize_str(
-        match value.as_ref() {
-            Some(quantity) => quantity.to_string(),
-            None => String::new(),
-        }
-        .as_str(),
-    )
-}
-
-/// An Ingredient that's used here instead of the parser's one, for template access.
-#[derive(Debug, Serialize)]
-struct Ingredient<'a> {
-    name: &'a str,
-    #[serde(serialize_with = "quantity_to_string")]
-    quantity: &'a Option<Quantity>,
-}
-
-impl<'a> From<&'a cooklang::Ingredient> for Ingredient<'a> {
-    fn from(value: &'a cooklang::Ingredient) -> Self {
-        Ingredient {
-            name: &value.name,
-            quantity: &value.quantity,
-        }
-    }
 }
 
 /// Context passed to the template
