@@ -7,11 +7,11 @@
 //! [01]: https://jinja.palletsprojects.com/en/stable/
 #[doc = include_str!("../README.md")]
 use config::Config;
-use cooklang::{Converter, CooklangParser, Cookware, Extensions, Metadata, ScaledRecipe, Section};
+use cooklang::{Converter, CooklangParser, Cookware, Extensions, Metadata, ScaledRecipe};
 use filters::{format_price_filter, numeric_filter};
 use functions::get_from_datastore;
 use minijinja::Environment;
-use model::Ingredient;
+use model::{Ingredient, Section};
 use serde::Serialize;
 use thiserror::Error;
 use yaml_datastore::Datastore;
@@ -38,7 +38,7 @@ pub enum Error {
 struct TemplateContext<'a> {
     scale: f64,
     datastore: Option<Datastore>,
-    sections: &'a Vec<Section>,
+    sections: Vec<Section<'a>>,
     ingredients: Vec<Ingredient<'a>>,
     cookware: &'a Vec<Cookware>,
     metadata: &'a Metadata,
@@ -49,7 +49,11 @@ impl TemplateContext<'_> {
         TemplateContext {
             scale,
             datastore,
-            sections: &recipe.sections,
+            sections: recipe
+                .sections
+                .iter()
+                .map(|section| Section::from_recipe_section(recipe, section))
+                .collect(),
             ingredients: recipe.ingredients.iter().map(Ingredient::from).collect(),
             cookware: &recipe.cookware,
             metadata: &recipe.metadata,
@@ -402,7 +406,7 @@ mod tests {
         ## {{ section.name }}
         {% endif %}
         {% for text in section.content -%}
-        {{ text.value }}
+        {{ text.Text }}
         {%- if not loop.last %}
 
         {% endif -%}
@@ -429,21 +433,26 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "not yet implemented"]
-    fn sections_with_steps() {
-        let recipe_path = get_test_data_path()
-            .join("recipes")
-            .join("Contrived Eggs.cook");
-        let recipe = std::fs::read_to_string(recipe_path).unwrap();
+    fn one_section_with_steps() {
+        let recipe = indoc! {"
+        Put @butter{1%pat} into #frying pan{} on low heat.
+
+        Crack @egg into pan.
+
+        Fry egg on low heat until cooked.
+
+        Enjoy.
+        "};
 
         let template: &str = indoc! {"
             # Steps
-            {%- for step in steps %}
-              {{ step }}
+            {% set section = sections[0] %}
+            {%- for content in section.content %}
+              {{ content }}
             {%- endfor %}
         "};
 
-        let result = render_template(&recipe, template).unwrap();
+        let result = render_template(recipe, template).unwrap();
         let expected = indoc! {"
             # Steps
             1. Put butter into frying pan on low heat.
