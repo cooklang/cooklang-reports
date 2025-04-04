@@ -23,6 +23,7 @@ where
 #[derive(Debug, Serialize)]
 pub(crate) struct Ingredient<'a> {
     pub(crate) name: &'a str,
+
     #[serde(serialize_with = "quantity_to_string")]
     pub(crate) quantity: &'a Option<Quantity>,
 }
@@ -104,8 +105,8 @@ enum Item<'a> {
     Text(&'a str),
     Ingredient(Ingredient<'a>),
     Cookware(&'a cooklang::Cookware),
-    Timer,          // TODO
-    InlineQuantity, // TODO; probably won't implement
+    //Timer,          // TODO
+    //InlineQuantity, // TODO; probably won't implement
 }
 
 // I hate it but the Ingredients are duplicated here.

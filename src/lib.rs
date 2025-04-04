@@ -446,9 +446,15 @@ mod tests {
 
         let template: &str = indoc! {"
             # Steps
-            {% set section = sections[0] %}
-            {%- for content in section.content %}
-              {{ content }}
+            {%- set section = sections[0] -%}
+            {% for content in section.content %}
+            {% if content.Step %}
+            {{- content.Step.number -}}. {% for item in content.Step.items -%}
+                {%- if item.Text %}{{ item.Text }}{% endif -%}
+                {%- if item.Cookware %}{{ item.Cookware.name }}{% endif -%}
+                {%- if item.Ingredient %}{{ item.Ingredient.name }}{% endif -%}
+                {%- endfor -%}
+            {% endif %}
             {%- endfor %}
         "};
 
