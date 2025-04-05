@@ -15,6 +15,7 @@ thiserror = "2.0.12"
 float-cmp = "0.10.0"
 indoc = "2.0"
 tempfile = "3.8"
+test-case = "3.3.1"
 
 [lints.rust]
 missing_docs = "warn"

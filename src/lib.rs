@@ -11,7 +11,7 @@ use cooklang::{Converter, CooklangParser, Cookware, Extensions, Metadata, Scaled
 use filters::{format_price_filter, numeric_filter};
 use functions::get_from_datastore;
 use minijinja::Environment;
-use model::{Ingredient, Section};
+use oldmodel::{Ingredient, Section};
 use serde::Serialize;
 use thiserror::Error;
 use yaml_datastore::Datastore;
@@ -20,6 +20,7 @@ pub mod config;
 mod filters;
 mod functions;
 mod model;
+mod oldmodel;
 
 /// Error type for this crate.
 #[derive(Error, Debug)]
