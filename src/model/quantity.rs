@@ -1,11 +1,11 @@
 use std::fmt::Display;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub(crate) struct Quantity(cooklang::Quantity);
 
 impl From<cooklang::Quantity> for Quantity {
-    fn from(value: cooklang::Quantity) -> Self {
-        Self(value)
+    fn from(quantity: cooklang::Quantity) -> Self {
+        Self(quantity)
     }
 }
 
