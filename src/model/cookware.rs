@@ -42,20 +42,9 @@ impl minijinja::value::Object for Cookware {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cooklang::{Converter, CooklangParser, Extensions, ScaledRecipe};
-    use minijinja::{Environment, Value, context};
+    use crate::model::tests::get_recipe_and_env;
+    use minijinja::{Value, context};
     use test_case::test_case;
-
-    fn get_recipe_and_env<'a>(recipe: &str, template: &'a str) -> (ScaledRecipe, Environment<'a>) {
-        let recipe_parser = CooklangParser::new(Extensions::all(), Converter::default());
-        let (unscaled_recipe, _warnings) = recipe_parser.parse(recipe).into_result().unwrap();
-        let recipe = unscaled_recipe.scale(1.into(), &Converter::default());
-
-        let mut env: Environment<'a> = Environment::new();
-        env.add_template("test", template).unwrap();
-
-        (recipe, env)
-    }
 
     #[test_case("Crack @egg{1} into #frying pan{}.", "{{ cookware }}", "frying pan"; "just name")]
     #[test_case("Crack @egg{1} into #frying pan{1}.", "{{ cookware }}", "frying pan"; "name and quantity")]
