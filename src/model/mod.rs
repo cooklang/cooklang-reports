@@ -1,9 +1,11 @@
 pub(crate) mod cookware;
 pub(crate) mod ingredient;
+pub(crate) mod item;
 pub(crate) mod quantity;
 
 pub(crate) use cookware::Cookware;
 pub(crate) use ingredient::Ingredient;
+pub(crate) use item::Item;
 pub(crate) use quantity::Quantity;
 
 #[cfg(test)]
