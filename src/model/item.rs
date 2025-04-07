@@ -1,8 +1,7 @@
 //! Model for item.
-
-use std::fmt::Debug;
-
 use super::{Cookware, Ingredient};
+use std::fmt::Display;
+
 /// A cooklang step item.
 ///
 /// Cooklang provides these as indices, but we want them as actual references.
@@ -15,7 +14,7 @@ pub(crate) enum Item {
     //InlineQuantity, // TODO; probably won't implement
 }
 impl Item {
-    fn from_recipe_item(recipe: &cooklang::ScaledRecipe, item: cooklang::Item) -> Self {
+    pub(super) fn from_recipe_item(recipe: &cooklang::ScaledRecipe, item: cooklang::Item) -> Self {
         match item {
             cooklang::Item::Text { value } => Self::Text(value),
             cooklang::Item::Ingredient { index } => {
@@ -30,16 +29,9 @@ impl Item {
     }
 }
 
-impl minijinja::value::Object for Item {
-    fn repr(self: &std::sync::Arc<Self>) -> minijinja::value::ObjectRepr {
-        minijinja::value::ObjectRepr::Plain
-    }
-
-    fn render(self: &std::sync::Arc<Self>, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
-    where
-        Self: Sized + 'static,
-    {
-        match &**self {
+impl Display for Item {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
             Item::Text(text) => write!(f, "{text}"),
             Item::Ingredient(ingredient) => {
                 write!(f, "{}", minijinja::Value::from_object(ingredient.clone()))
@@ -51,6 +43,19 @@ impl minijinja::value::Object for Item {
     }
 }
 
+impl minijinja::value::Object for Item {
+    fn repr(self: &std::sync::Arc<Self>) -> minijinja::value::ObjectRepr {
+        minijinja::value::ObjectRepr::Plain
+    }
+
+    fn render(self: &std::sync::Arc<Self>, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+    where
+        Self: Sized + 'static,
+    {
+        self.fmt(f)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -58,9 +63,9 @@ mod tests {
     use minijinja::{Value, context};
     use test_case::test_case;
 
-    #[test_case("Measure @olive oil{} into #frying pan{}.", "{{ step }}", "Measure "; "initial text")]
-    #[test_case("@olive oil{} into #frying pan{}.", "{{ step }}", "olive oil"; "ingredient")]
-    #[test_case("#frying pan{}.", "{{ step }}", "frying pan"; "cookware")]
+    #[test_case("Measure @olive oil{} into #frying pan{}.", "{{ item }}", "Measure "; "initial text")]
+    #[test_case("@olive oil{} into #frying pan{}.", "{{ item }}", "olive oil"; "ingredient")]
+    #[test_case("#frying pan{}.", "{{ item }}", "frying pan"; "cookware")]
     fn item(recipe: &str, template: &str, expected: &str) {
         let (recipe, env) = get_recipe_and_env(recipe, template);
 
@@ -71,7 +76,7 @@ mod tests {
 
         // Build context
         let context = context! {
-            step => Value::from_object(item)
+            item => Value::from_object(item)
         };
 
         let template = env.get_template("test").unwrap();
