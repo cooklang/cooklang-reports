@@ -29,10 +29,15 @@ impl minijinja::value::Object for Section {
     }
 
     fn get_value(self: &std::sync::Arc<Self>, key: &minijinja::Value) -> Option<minijinja::Value> {
-        self.content
-            .get(key.as_usize()?)
-            .cloned()
-            .map(minijinja::Value::from_object)
+        match key.as_str()? {
+            "name" if self.name.is_some() => Some(minijinja::Value::from(self.name.clone())),
+            "name" if self.name.is_none() => Some(minijinja::Value::from("")),
+            _ => self
+                .content
+                .get(key.as_usize()?)
+                .cloned()
+                .map(minijinja::Value::from_object),
+        }
     }
 
     fn enumerate(self: &std::sync::Arc<Self>) -> minijinja::value::Enumerator {
@@ -78,10 +83,10 @@ mod tests {
 
     #[test_case(NAMED_TEST.0, "{{ section }}", NAMED_TEST.1; "named")]
     #[test_case(UNNAMED_TEST.0, "{{ section }}", UNNAMED_TEST.1; "unnamed")]
+    #[test_case("= Intro\n\n> This is something", "{{ section.name }}", "Intro"; "named name")]
+    #[test_case("> This is something", "{{ section.name }}", ""; "unnamed name")]
     fn section(recipe: &str, template: &str, expected: &str) {
         let (recipe, env) = get_recipe_and_env(recipe, template);
-
-        // Build context
         let context = context! {
             section => Value::from_object(Section::from_recipe_section(&recipe, recipe.sections[0].clone()))
         };
