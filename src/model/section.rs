@@ -10,16 +10,25 @@ pub(crate) struct Section {
 impl Section {
     pub(super) fn from_recipe_section(
         recipe: &cooklang::ScaledRecipe,
-        step: cooklang::Section,
+        section: &cooklang::Section,
     ) -> Self {
         Self {
-            name: step.name,
-            content: step
+            name: section.name.clone(),
+            content: section
+                .clone()
                 .content
                 .into_iter()
                 .map(|content| Content::from_recipe_content(recipe, content))
                 .collect(),
         }
+    }
+
+    pub(super) fn from_recipe_sections(recipe: &cooklang::ScaledRecipe) -> Vec<Self> {
+        recipe
+            .sections
+            .iter()
+            .map(|section| Self::from_recipe_section(recipe, section))
+            .collect()
     }
 }
 
@@ -88,7 +97,7 @@ mod tests {
     fn section(recipe: &str, template: &str, expected: &str) {
         let (recipe, env) = get_recipe_and_env(recipe, template);
         let context = context! {
-            section => Value::from_object(Section::from_recipe_section(&recipe, recipe.sections[0].clone()))
+            section => Value::from_object(Section::from_recipe_section(&recipe, &recipe.sections[0]))
         };
 
         let template = env.get_template("test").unwrap();
