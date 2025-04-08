@@ -27,10 +27,14 @@ impl minijinja::value::Object for Step {
     }
 
     fn get_value(self: &std::sync::Arc<Self>, key: &minijinja::Value) -> Option<minijinja::Value> {
-        self.items
-            .get(key.as_usize()?)
-            .cloned()
-            .map(minijinja::Value::from_object)
+        match key.as_str()? {
+            "number" => Some(minijinja::Value::from(self.number)),
+            _ => self
+                .items
+                .get(key.as_usize()?)
+                .cloned()
+                .map(minijinja::Value::from_object),
+        }
     }
 
     fn enumerate(self: &std::sync::Arc<Self>) -> minijinja::value::Enumerator {
@@ -65,7 +69,7 @@ mod tests {
     #[test_case("Wash your hands.\n\nGet ready.", "{{ step }}", "1. Wash your hands."; "text-only step")]
     #[test_case("Pour @olive oil{} into #frying pan{}.\n\nDon't burn yourself.", "{{ step }}", "1. Pour olive oil into frying pan."; "complex step")]
     #[test_case("Pour @olive oil{}\ninto #frying pan{}.\n\nDon't burn yourself.", "{{ step }}", "1. Pour olive oil into frying pan."; "multiline step")]
-    // #[test_case("#frying pan{}.", "{{ step }}", "frying pan"; "cookware")]
+    #[test_case("Pour @olive oil{}\ninto #frying pan{}", "{{ step.number }}", "1"; "step number")]
     fn step(recipe: &str, template: &str, expected: &str) {
         let (recipe, env) = get_recipe_and_env(recipe, template);
 
