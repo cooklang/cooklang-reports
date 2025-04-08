@@ -13,6 +13,7 @@ pub(crate) enum Item {
     //Timer,          // TODO
     //InlineQuantity, // TODO; probably won't implement
 }
+
 impl Item {
     pub(super) fn from_recipe_item(recipe: &cooklang::ScaledRecipe, item: cooklang::Item) -> Self {
         match item {

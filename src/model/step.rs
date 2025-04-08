@@ -9,7 +9,7 @@ pub(crate) struct Step {
 }
 
 impl Step {
-    fn from_recipe_step(recipe: &cooklang::ScaledRecipe, step: cooklang::Step) -> Self {
+    pub(super) fn from_recipe_step(recipe: &cooklang::ScaledRecipe, step: cooklang::Step) -> Self {
         Self {
             items: step
                 .items
@@ -41,6 +41,12 @@ impl minijinja::value::Object for Step {
     where
         Self: Sized + 'static,
     {
+        self.fmt(f)
+    }
+}
+
+impl Display for Step {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}. ", self.number)?;
         for item in &self.items {
             item.fmt(f)?;
