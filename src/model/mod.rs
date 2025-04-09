@@ -1,4 +1,5 @@
 pub(crate) mod content;
+pub(crate) mod content_list;
 pub(crate) mod cookware;
 pub(crate) mod ingredient;
 pub(crate) mod item;
@@ -7,6 +8,7 @@ pub(crate) mod section;
 pub(crate) mod step;
 
 pub(crate) use content::Content;
+pub(crate) use content_list::ContentList;
 pub(crate) use cookware::Cookware;
 pub(crate) use ingredient::Ingredient;
 pub(crate) use item::Item;

@@ -22,8 +22,8 @@ impl Content {
 impl Display for Content {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Content::Step(step) => write!(f, "{step}\n\n"),
-            Content::Text(value) => write!(f, "{value}\n\n"),
+            Content::Step(step) => writeln!(f, "{step}"),
+            Content::Text(value) => writeln!(f, "{value}"),
         }
     }
 }
@@ -45,9 +45,9 @@ mod tests {
     use minijinja::{Value, context};
     use test_case::test_case;
 
-    #[test_case("> This recipe is great!\n\nI am an actual step.", "{{ content }}", "This recipe is great!\n\n"; "initial text")]
-    #[test_case("I am an actual step.\n\n> This recipe is great!", "{{ content }}", "1. I am an actual step.\n\n"; "initial basic step")]
-    #[test_case("Rinse @potatoes{1%kg} with @water.\n\n> This recipe is great!", "{{ content }}", "1. Rinse 1 kg potatoes with water.\n\n"; "interesting step")]
+    #[test_case("> This recipe is great!\n\nI am an actual step.", "{{ content }}", "This recipe is great!\n"; "initial text")]
+    #[test_case("I am an actual step.\n\n> This recipe is great!", "{{ content }}", "1. I am an actual step.\n"; "initial basic step")]
+    #[test_case("Rinse @potatoes{1%kg} with @water.\n\n> This recipe is great!", "{{ content }}", "1. Rinse 1 kg potatoes with water.\n"; "interesting step")]
     fn content(recipe: &str, template: &str, expected: &str) {
         let (recipe, env) = get_recipe_and_env(recipe, template);
 

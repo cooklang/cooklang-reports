@@ -83,11 +83,11 @@ mod tests {
 
     const NAMED_TEST: (&str, &str) = (
         "= Intro\n\n> This is some intro.\nIt is not interesting.",
-        "= Intro\n\nThis is some intro. It is not interesting.\n\n",
+        "= Intro\n\nThis is some intro. It is not interesting.\n",
     );
     const UNNAMED_TEST: (&str, &str) = (
         "Crack an @egg.\n\nCook it.",
-        "= Recipe\n\n1. Crack an egg.\n\n2. Cook it.\n\n",
+        "= Recipe\n\n1. Crack an egg.\n2. Cook it.\n",
     );
 
     #[test_case(NAMED_TEST.0, "{{ section }}", NAMED_TEST.1; "named")]
