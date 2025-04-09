@@ -34,7 +34,7 @@ pub enum Error {
 }
 
 /// Context passed to the template
-#[derive(Clone, Debug, Serialize)]
+#[derive(Debug, Serialize)]
 struct TemplateContext {
     scale: f64,
     datastore: Option<Datastore>,
