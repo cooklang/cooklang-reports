@@ -1,5 +1,6 @@
 //! Model for ingredient.
-#[derive(Debug, Clone)]
+use serde::Serialize;
+#[derive(Clone, Debug, Serialize)]
 pub(crate) struct Ingredient(cooklang::Ingredient);
 
 impl From<cooklang::Ingredient> for Ingredient {
@@ -65,5 +66,26 @@ mod tests {
 
         let template = env.get_template("test").unwrap();
         assert_eq!(result, template.render(context).unwrap());
+    }
+
+    #[test]
+    fn ingredient_loop() {
+        fn ingredient(recipe: &str, template: &str, result: &str) {
+            let (recipe, env) = get_recipe_and_env(recipe, template);
+
+            // Build context
+            let ingredients: Vec<Value> = recipe
+                .ingredients
+                .into_iter()
+                .map(Ingredient::from)
+                .map(Value::from_object)
+                .collect();
+            let context = context! {
+                ingredients => ingredients
+            };
+
+            let template = env.get_template("test").unwrap();
+            assert_eq!(result, template.render(context).unwrap());
+        }
     }
 }

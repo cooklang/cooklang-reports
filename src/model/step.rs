@@ -1,8 +1,9 @@
 use super::Item;
+use serde::Serialize;
 use std::fmt::Display;
 
 // Can't do newtype anymore because we need to use my own Item.
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, Serialize)]
 pub(crate) struct Step {
     items: Vec<Item>,
     number: u32,

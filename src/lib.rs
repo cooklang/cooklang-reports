@@ -7,11 +7,11 @@
 //! [01]: https://jinja.palletsprojects.com/en/stable/
 #[doc = include_str!("../README.md")]
 use config::Config;
-use cooklang::{Converter, CooklangParser, Cookware, Extensions, Metadata, ScaledRecipe};
+use cooklang::{Converter, CooklangParser, Extensions, ScaledRecipe};
 use filters::{format_price_filter, numeric_filter};
 use functions::get_from_datastore;
 use minijinja::Environment;
-use oldmodel::{Ingredient, Section};
+use model::{Cookware, Ingredient, Section};
 use serde::Serialize;
 use thiserror::Error;
 use yaml_datastore::Datastore;
@@ -20,7 +20,6 @@ pub mod config;
 mod filters;
 mod functions;
 mod model;
-mod oldmodel;
 
 /// Error type for this crate.
 #[derive(Error, Debug)]
@@ -35,29 +34,33 @@ pub enum Error {
 }
 
 /// Context passed to the template
-#[derive(Debug, Serialize)]
-struct TemplateContext<'a> {
+#[derive(Clone, Debug, Serialize)]
+struct TemplateContext {
     scale: f64,
     datastore: Option<Datastore>,
-    sections: Vec<Section<'a>>,
-    ingredients: Vec<Ingredient<'a>>,
-    cookware: &'a Vec<Cookware>,
-    metadata: &'a Metadata,
+    sections: Vec<minijinja::Value>,
+    ingredients: Vec<minijinja::Value>,
+    cookware: Vec<Cookware>,
+    metadata: cooklang::Metadata,
 }
 
-impl TemplateContext<'_> {
-    fn new(recipe: &ScaledRecipe, scale: f64, datastore: Option<Datastore>) -> TemplateContext {
+impl TemplateContext {
+    fn new(recipe: ScaledRecipe, scale: f64, datastore: Option<Datastore>) -> TemplateContext {
         TemplateContext {
             scale,
             datastore,
-            sections: recipe
-                .sections
-                .iter()
-                .map(|section| Section::from_recipe_section(recipe, section))
+            sections: Section::from_recipe_sections(&recipe)
+                .into_iter()
+                .map(minijinja::Value::from_object)
                 .collect(),
-            ingredients: recipe.ingredients.iter().map(Ingredient::from).collect(),
-            cookware: &recipe.cookware,
-            metadata: &recipe.metadata,
+            ingredients: recipe
+                .ingredients
+                .into_iter()
+                .map(Ingredient::from)
+                .map(minijinja::Value::from_object)
+                .collect(),
+            cookware: recipe.cookware.into_iter().map(Cookware::from).collect(),
+            metadata: recipe.metadata,
         }
     }
 }
@@ -105,7 +108,7 @@ pub fn render_template_with_config(
     let recipe = unscaled_recipe.scale(config.scale, &Converter::default());
     let datastore = config.datastore_path.as_ref().map(Datastore::open);
 
-    let template_context = TemplateContext::new(&recipe, config.scale, datastore);
+    let template_context = TemplateContext::new(recipe, config.scale, datastore);
     let template_environment = template_environment(template)?;
 
     let template: minijinja::Template<'_, '_> = template_environment.get_template("base")?;
@@ -205,7 +208,7 @@ mod tests {
         let template = indoc! {"
             # Ingredients ({{ scale }}x)
             {%- for ingredient in ingredients %}
-            - {{ ingredient.name }}{% if ingredient.quantity %}: {{ ingredient.quantity }}{% if ingredient.unit %} {{ ingredient.unit }}{% endif %}{% endif %}
+            - {{ ingredient.name }}: {{ ingredient.quantity }}
             {%- endfor %}
         "};
 
@@ -401,34 +404,23 @@ mod tests {
         // I hate the nesting in this template but I couldn't get the whitespace
         // modifiers to work the way I want. I hate jinja whitespace.
         let template: &str = indoc! {"
-        # Blog
-        {%- for section in sections %}
-        {% if section.name %}
-        ## {{ section.name }}
-        {% endif %}
-        {% for text in section.content -%}
-        {{ text.Text }}
-        {%- if not loop.last %}
-
-        {% endif -%}
-        {% endfor -%}
-        {%- endfor %}\n
+        {%- for section in sections -%}
+        {{ section }}
+        {%- endfor -%}\n
         "};
 
         let result = render_template(&recipe, template).unwrap();
-        println!("{result}");
         let expected = indoc! {"
-        # Blog
-
-        ## My Life Story
+        = My Life Story
 
         This is a blog post about something.
 
         It has many paragraphs.
 
-        ## Recipe
+        = Recipe
 
         Nope, just kidding.
+
         "};
         assert_eq!(result, expected);
     }
@@ -447,22 +439,17 @@ mod tests {
 
         let template: &str = indoc! {"
             # Steps
-            {%- set section = sections[0] -%}
-            {% for content in section.content %}
-            {% if content.Step %}
-            {{- content.Step.number -}}. {% for item in content.Step.items -%}
-                {%- if item.Text %}{{ item.Text }}{% endif -%}
-                {%- if item.Cookware %}{{ item.Cookware.name }}{% endif -%}
-                {%- if item.Ingredient %}{{ item.Ingredient.name }}{% endif -%}
-                {%- endfor -%}
-            {% endif %}
+            {% for content in sections[0] %}
+            {{ content }}
             {%- endfor %}
         "};
 
         let result = render_template(recipe, template).unwrap();
+        println!("{result}");
         let expected = indoc! {"
             # Steps
-            1. Put butter into frying pan on low heat.
+
+            1. Put 1 pat butter into frying pan on low heat.
             2. Crack egg into pan.
             3. Fry egg on low heat until cooked.
             4. Enjoy."};

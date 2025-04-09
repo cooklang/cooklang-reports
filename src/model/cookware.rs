@@ -2,7 +2,9 @@
 //!
 //! Standard display behavior is just to use the display name, which is either the
 //! name, or alias, if present. Quantity and notes are not included, but are accessible.
-#[derive(Debug, Clone)]
+use serde::Serialize;
+
+#[derive(Clone, Debug, Serialize)]
 pub(crate) struct Cookware(cooklang::Cookware);
 
 impl From<cooklang::Cookware> for Cookware {

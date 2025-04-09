@@ -1,11 +1,12 @@
 //! Model for item.
 use super::{Cookware, Ingredient};
+use serde::Serialize;
 use std::fmt::Display;
 
 /// A cooklang step item.
 ///
 /// Cooklang provides these as indices, but we want them as actual references.
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, Serialize)]
 pub(crate) enum Item {
     Text(String),
     Ingredient(Ingredient),

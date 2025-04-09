@@ -8,7 +8,7 @@ pub(crate) struct Section {
 }
 
 impl Section {
-    pub(super) fn from_recipe_section(
+    pub(crate) fn from_recipe_section(
         recipe: &cooklang::ScaledRecipe,
         section: &cooklang::Section,
     ) -> Self {
@@ -18,7 +18,7 @@ impl Section {
         }
     }
 
-    pub(super) fn from_recipe_sections(recipe: &cooklang::ScaledRecipe) -> Vec<Self> {
+    pub(crate) fn from_recipe_sections(recipe: &cooklang::ScaledRecipe) -> Vec<Self> {
         recipe
             .sections
             .iter()
@@ -33,14 +33,20 @@ impl minijinja::value::Object for Section {
     }
 
     fn get_value(self: &std::sync::Arc<Self>, key: &minijinja::Value) -> Option<minijinja::Value> {
+        // If it's an index, fetch it.
+        if let Some(index) = key.as_usize() {
+            return self
+                .content
+                .get(index)
+                .cloned()
+                .map(minijinja::Value::from_object);
+        }
+
         match key.as_str()? {
             "name" if self.name.is_some() => Some(minijinja::Value::from(self.name.clone())),
             "name" if self.name.is_none() => Some(minijinja::Value::from("")),
-            _ => self
-                .content
-                .get(key.as_usize()?)
-                .cloned()
-                .map(minijinja::Value::from_object),
+            "content" => Some(minijinja::Value::from_object(self.content.clone())),
+            _ => None,
         }
     }
 

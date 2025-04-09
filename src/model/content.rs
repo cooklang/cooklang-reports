@@ -1,7 +1,8 @@
 use super::Step;
+use serde::Serialize;
 use std::fmt::Display;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub(crate) enum Content {
     Step(Step),
     Text(String),
