@@ -1,10 +1,10 @@
-use super::Content;
+use super::ContentList;
 use std::fmt::Display;
 
 #[derive(Clone, Debug)]
 pub(crate) struct Section {
     name: Option<String>,
-    content: Vec<Content>,
+    content: ContentList,
 }
 
 impl Section {
@@ -14,12 +14,7 @@ impl Section {
     ) -> Self {
         Self {
             name: section.name.clone(),
-            content: section
-                .clone()
-                .content
-                .into_iter()
-                .map(|content| Content::from_recipe_content(recipe, content))
-                .collect(),
+            content: ContentList::from_recipe_contents(recipe, section.content.clone()),
         }
     }
 
@@ -67,8 +62,8 @@ impl Display for Section {
             Some(name) => write!(f, "= {name}\n\n"),
             None => write!(f, "= Recipe\n\n"),
         }?;
-        for content in &self.content {
-            content.fmt(f)?;
+        for content in self.content.iter() {
+            writeln!(f, "{content}\n")?;
         }
         Ok(())
     }
@@ -83,11 +78,11 @@ mod tests {
 
     const NAMED_TEST: (&str, &str) = (
         "= Intro\n\n> This is some intro.\nIt is not interesting.",
-        "= Intro\n\nThis is some intro. It is not interesting.\n",
+        "= Intro\n\nThis is some intro. It is not interesting.\n\n",
     );
     const UNNAMED_TEST: (&str, &str) = (
         "Crack an @egg.\n\nCook it.",
-        "= Recipe\n\n1. Crack an egg.\n2. Cook it.\n",
+        "= Recipe\n\n1. Crack an egg.\n\n2. Cook it.\n\n",
     );
 
     #[test_case(NAMED_TEST.0, "{{ section }}", NAMED_TEST.1; "named")]

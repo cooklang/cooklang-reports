@@ -17,6 +17,18 @@ impl ContentList {
                 .collect(),
         )
     }
+
+    pub(crate) fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub(crate) fn get(&self, index: usize) -> Option<&Content> {
+        self.0.get(index)
+    }
+
+    pub(crate) fn iter(&self) -> std::slice::Iter<'_, Content> {
+        self.0.iter()
+    }
 }
 
 impl minijinja::value::Object for ContentList {
@@ -59,12 +71,12 @@ mod tests {
     use minijinja::{Value, context};
     use test_case::test_case;
 
-    const ITERATE_TEMPLATE: &str = "{% for content in content_list %}{{ content }}{% endfor %}";
+    const ITERATE_TEMPLATE: &str = "{% for content in content_list %}{{ content }}\n{% endfor %}";
 
-    #[test_case("> First text.\n\n> Second text.", "{{ content_list }}", "First text.\n\nSecond text.\n\n"; "two texts")]
-    #[test_case("First step.\n\nSecond step.", "{{ content_list }}", "1. First step.\n\n2. Second step.\n\n"; "two steps")]
-    #[test_case("> First text.\n\nFirst step.", "{{ content_list }}", "First text.\n\n1. First step.\n\n"; "text step")]
-    #[test_case("First step.\n\n> First text.", "{{ content_list }}", "1. First step.\n\nFirst text.\n\n"; "step text")]
+    #[test_case("> First text.\n\n> Second text.", "{{ content_list }}", "First text.\nSecond text.\n"; "two texts")]
+    #[test_case("First step.\n\nSecond step.", "{{ content_list }}", "1. First step.\n2. Second step.\n"; "two steps")]
+    #[test_case("> First text.\n\nFirst step.", "{{ content_list }}", "First text.\n1. First step.\n"; "text step")]
+    #[test_case("First step.\n\n> First text.", "{{ content_list }}", "1. First step.\nFirst text.\n"; "step text")]
     #[test_case("> First text.\n\n> Second text.", ITERATE_TEMPLATE, "First text.\nSecond text.\n"; "iterate two texts")]
     #[test_case("First step.\n\nSecond step.", ITERATE_TEMPLATE, "1. First step.\n2. Second step.\n"; "iterate two steps")]
     #[test_case("> First text.\n\nFirst step.", ITERATE_TEMPLATE, "First text.\n1. First step.\n"; "iterate text step")]
