@@ -3,7 +3,7 @@ use std::fmt::Display;
 use super::Content;
 
 #[derive(Clone, Debug)]
-pub(crate) struct ContentList(Vec<Content>);
+pub struct ContentList(Vec<Content>);
 
 impl ContentList {
     pub(crate) fn from_recipe_contents(

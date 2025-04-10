@@ -1,9 +1,20 @@
 //! Model for ingredient.
 use serde::Serialize;
+
+/// Struct representing an ingredient in a Cooklang recipe.
+///
+/// This struct is simply a newtype around [`cooklang::Ingredient`] that is compatible with
+/// the template engine. It restricts some access, but makes other access more ergonomic.
+///
+/// Directly rendering an ingredient in a template will print the [display name][`cooklang::Ingredient::display_name`]
+/// of the ingredient preceded by the [quantity][`super::Quantity`] if it is present.
+///
+/// TODO examples
 #[derive(Clone, Debug, Serialize)]
-pub(crate) struct Ingredient(cooklang::Ingredient);
+pub struct Ingredient(cooklang::Ingredient);
 
 impl From<cooklang::Ingredient> for Ingredient {
+    /// Construct an [`Ingredient`] from a [`cooklang::Ingredient`] within a [`cooklang::ScaledRecipe`].
     fn from(ingredient: cooklang::Ingredient) -> Self {
         Self(ingredient)
     }
@@ -14,6 +25,12 @@ impl minijinja::value::Object for Ingredient {
         minijinja::value::ObjectRepr::Plain
     }
 
+    /// Access a given key within this ingredient in a template.
+    ///
+    /// # Valid keys
+    /// - `note`
+    /// - `alias`
+    /// - `quantity`
     fn get_value(self: &std::sync::Arc<Self>, key: &minijinja::Value) -> Option<minijinja::Value> {
         match key.as_str()? {
             "note" => self.0.note.as_ref().map(minijinja::Value::from),
@@ -29,6 +46,10 @@ impl minijinja::value::Object for Ingredient {
         }
     }
 
+    /// Render the ingredient when directly requested in a template.
+    ///
+    /// Print the [display name][`cooklang::Ingredient::display_name`] of the ingredient preceded
+    /// by the [quantity][`super::Quantity`] if it is present.
     fn render(self: &std::sync::Arc<Self>, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
     where
         Self: Sized + 'static,
@@ -66,26 +87,5 @@ mod tests {
 
         let template = env.get_template("test").unwrap();
         assert_eq!(result, template.render(context).unwrap());
-    }
-
-    #[test]
-    fn ingredient_loop() {
-        fn ingredient(recipe: &str, template: &str, result: &str) {
-            let (recipe, env) = get_recipe_and_env(recipe, template);
-
-            // Build context
-            let ingredients: Vec<Value> = recipe
-                .ingredients
-                .into_iter()
-                .map(Ingredient::from)
-                .map(Value::from_object)
-                .collect();
-            let context = context! {
-                ingredients => ingredients
-            };
-
-            let template = env.get_template("test").unwrap();
-            assert_eq!(result, template.render(context).unwrap());
-        }
     }
 }

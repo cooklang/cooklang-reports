@@ -5,7 +5,7 @@
 use serde::Serialize;
 
 #[derive(Clone, Debug, Serialize)]
-pub(crate) struct Cookware(cooklang::Cookware);
+pub struct Cookware(cooklang::Cookware);
 
 impl From<cooklang::Cookware> for Cookware {
     fn from(cookware: cooklang::Cookware) -> Self {

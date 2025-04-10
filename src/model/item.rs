@@ -7,7 +7,7 @@ use std::fmt::Display;
 ///
 /// Cooklang provides these as indices, but we want them as actual references.
 #[derive(Clone, Debug, Serialize)]
-pub(crate) enum Item {
+pub enum Item {
     Text(String),
     Ingredient(Ingredient),
     Cookware(Cookware),

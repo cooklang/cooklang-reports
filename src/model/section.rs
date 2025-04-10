@@ -2,7 +2,7 @@ use super::ContentList;
 use std::fmt::Display;
 
 #[derive(Clone, Debug)]
-pub(crate) struct Section {
+pub struct Section {
     name: Option<String>,
     content: ContentList,
 }

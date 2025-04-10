@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 #[derive(Debug)]
-pub(crate) struct Quantity(cooklang::Quantity);
+pub struct Quantity(cooklang::Quantity);
 
 impl From<cooklang::Quantity> for Quantity {
     fn from(quantity: cooklang::Quantity) -> Self {

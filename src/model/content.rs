@@ -3,7 +3,7 @@ use serde::Serialize;
 use std::fmt::Display;
 
 #[derive(Clone, Debug, Serialize)]
-pub(crate) enum Content {
+pub enum Content {
     Step(Step),
     Text(String),
 }

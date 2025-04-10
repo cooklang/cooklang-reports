@@ -19,7 +19,7 @@ use yaml_datastore::Datastore;
 pub mod config;
 mod filters;
 mod functions;
-mod model;
+pub mod model;
 
 /// Error type for this crate.
 #[derive(Error, Debug)]

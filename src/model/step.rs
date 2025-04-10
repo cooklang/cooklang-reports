@@ -4,7 +4,7 @@ use std::fmt::Display;
 
 // Can't do newtype anymore because we need to use my own Item.
 #[derive(Clone, Debug, Serialize)]
-pub(crate) struct Step {
+pub struct Step {
     items: Vec<Item>,
     number: u32,
 }
