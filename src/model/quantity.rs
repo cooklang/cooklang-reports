@@ -9,6 +9,15 @@ use std::fmt::Display;
 ///
 /// Constructed from [`cooklang::Quantity`] and can be converted into [`minijinja::Value`].
 ///
+/// If you have a `quantity`, for example, from an [`Ingredient`][`super::Ingredient`], then
+/// the following are valid ways to use that quantity.
+///
+/// ```text
+/// {{ quantity }}
+/// {{ quantity.value }}
+/// {{ quantity.unit }}
+/// ```
+///
 /// # Limitations
 ///
 /// While the quantity's value can be used in a template and passed through the builtin
