@@ -3,9 +3,14 @@ use super::{Cookware, Ingredient};
 use serde::Serialize;
 use std::fmt::Display;
 
-/// A cooklang step item.
+/// Wrapper for [`cooklang::Item`] for reporting.
 ///
-/// Cooklang provides these as indices, but we want them as actual references.
+/// # Usage
+///
+/// Constructed from [`cooklang::Item`] and can be converted into [`minijinja::Value`].
+///
+/// This enum can only be used directly, and has no fields. Its rendering is handled differently
+/// depending on its type.
 #[derive(Clone, Debug, Serialize)]
 pub enum Item {
     Text(String),
@@ -13,6 +18,12 @@ pub enum Item {
     Cookware(Cookware),
     //Timer,          // TODO
     //InlineQuantity, // TODO; probably won't implement
+}
+
+impl From<Item> for minijinja::Value {
+    fn from(value: Item) -> Self {
+        Self::from_object(value)
+    }
 }
 
 impl Item {
@@ -25,8 +36,8 @@ impl Item {
             cooklang::Item::Cookware { index } => {
                 Self::Cookware(Cookware::from(recipe.cookware[index].clone()))
             }
-            cooklang::Item::Timer { index } => todo!(),
-            cooklang::Item::InlineQuantity { index } => todo!(),
+            cooklang::Item::Timer { index: _ } => unimplemented!(),
+            cooklang::Item::InlineQuantity { index: _ } => unimplemented!(),
         }
     }
 }
@@ -36,10 +47,10 @@ impl Display for Item {
         match self {
             Item::Text(text) => write!(f, "{text}"),
             Item::Ingredient(ingredient) => {
-                write!(f, "{}", minijinja::Value::from_object(ingredient.clone()))
+                write!(f, "{}", minijinja::Value::from(ingredient.clone()))
             }
             Item::Cookware(cookware) => {
-                write!(f, "{}", minijinja::Value::from_object(cookware.clone()))
+                write!(f, "{}", minijinja::Value::from(cookware.clone()))
             }
         }
     }
@@ -78,7 +89,7 @@ mod tests {
 
         // Build context
         let context = context! {
-            item => Value::from_object(item)
+            item => Value::from(item)
         };
 
         let template = env.get_template("test").unwrap();

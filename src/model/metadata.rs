@@ -1,6 +1,30 @@
 use minijinja::value::ObjectExt;
 use serde::Serialize;
 
+/// Wrapper for [`cooklang::Metadata`] for reporting.
+///
+/// # Usage
+///
+/// Constructed from [`cooklang::Metadata`] and can be converted into [`minijinja::Value`].
+///
+/// If you have a `metadata`, then the following are valid ways to use it. Below, `<key>` refers
+/// to a valid key within the metadata YAML.
+///
+/// ```text
+/// {{ metadata }}
+/// {{ metadata.<key>> }}
+/// ```
+///
+/// The usage `{{ metadata }}` will render the entire frontmatter block, with `---` before and after it.
+///
+/// The metadata may also be iterated over in a template, which will enumerate all its keys. This
+/// can be passed to `items`, which will split it into keys and values:
+///
+/// ```text
+/// {% for (key, value) in metadata | items %}
+/// {{ key }}: {{ value }}
+/// {% endfor %}
+/// ```
 #[derive(Clone, Debug, Serialize)]
 pub struct Metadata(cooklang::Metadata);
 
@@ -74,7 +98,7 @@ mod tests {
     fn metadata(recipe: &str, template: &str, expected: &str) {
         let (recipe, env) = get_recipe_and_env(recipe, template);
         let context = context! {
-            metadata => Value::from(Metadata::from(recipe.metadata)),
+            metadata => Value::from(Metadata(recipe.metadata)),
         };
 
         let template = env.get_template("test").unwrap();
