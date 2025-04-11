@@ -1,9 +1,21 @@
+use super::Content;
 use std::fmt::Display;
 
-use super::Content;
-
+/// Wrapper for [`Vec`] of [`cooklang::Content`] for reporting.
+///
+/// # Usage
+///
+/// Constructed from a [`Vec`] of [`cooklang::Content`] and can be converted into [`minijinja::Value`].
+///
+/// The only way to use this is to iterate over it, but likely you will do that via [`Section`][`super::Section`].
 #[derive(Clone, Debug)]
 pub struct ContentList(Vec<Content>);
+
+impl From<ContentList> for minijinja::Value {
+    fn from(value: ContentList) -> Self {
+        Self::from_object(value)
+    }
+}
 
 impl ContentList {
     pub(crate) fn from_recipe_contents(
@@ -84,7 +96,7 @@ mod tests {
     fn content_list(recipe: &str, template: &str, expected: &str) {
         let (recipe, env) = get_recipe_and_env(recipe, template);
         let context = context! {
-            content_list => Value::from_object(ContentList::from_recipe_contents(&recipe, recipe.sections[0].content.clone()))
+            content_list => Value::from(ContentList::from_recipe_contents(&recipe, recipe.sections[0].content.clone()))
         };
 
         let template = env.get_template("test").unwrap();

@@ -22,7 +22,7 @@ use serde::Serialize;
 /// - `cookware.name` renders the cookware's name field.
 /// - `cookware.alias` renders the cookware's alias.
 /// - `cookware.note` renders the note attached to the cookware.
-/// - `cookware.quantity` provides access to a [`Value`][`cookware::Value`] as a string.
+/// - `cookware.quantity` provides access to a [`Value`][`cooklang::Value`] as a string.
 #[derive(Clone, Debug, Serialize)]
 pub struct Cookware(cooklang::Cookware);
 
