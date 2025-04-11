@@ -57,7 +57,7 @@ impl TemplateContext {
                 .ingredients
                 .into_iter()
                 .map(Ingredient::from)
-                .map(minijinja::Value::from_object)
+                .map(minijinja::Value::from)
                 .collect(),
             cookware: recipe.cookware.into_iter().map(Cookware::from).collect(),
             metadata: Metadata::from(recipe.metadata).into(),

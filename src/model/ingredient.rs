@@ -35,6 +35,12 @@ impl From<cooklang::Ingredient> for Ingredient {
     }
 }
 
+impl From<Ingredient> for minijinja::Value {
+    fn from(value: Ingredient) -> Self {
+        Self::from_object(value)
+    }
+}
+
 impl Display for Ingredient {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self.0.quantity {
@@ -95,7 +101,7 @@ mod tests {
 
         // Build context
         let context = context! {
-            ingredient => Value::from_object(Ingredient(recipe.ingredients[0].clone()))
+            ingredient => Value::from(Ingredient(recipe.ingredients[0].clone()))
         };
 
         let template = env.get_template("test").unwrap();
