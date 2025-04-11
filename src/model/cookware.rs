@@ -1,15 +1,40 @@
-//! Model for cookware.
-//!
-//! Standard display behavior is just to use the display name, which is either the
-//! name, or alias, if present. Quantity and notes are not included, but are accessible.
 use serde::Serialize;
 
+/// Wrapper for [`cooklang::Cookware`] for reporting.
+///
+/// # Usage
+///
+/// Constructed from [`cooklang::Cookware`] and can be converted into [`minijinja::Value`].
+///
+/// If you have a `cookware`, then the following are valid ways to use it.
+///
+/// ```text
+/// {{ cookware }}
+/// {{ cookware.name }}
+/// {{ cookware.alias }}
+/// {{ cookware.note }}
+/// {{ cookware.quantity }}
+/// ```
+///
+/// For the above:
+///
+/// - `cookware` formats according to its `Display` implementation, which uses its display name.
+/// - `cookware.name` renders the cookware's name field.
+/// - `cookware.alias` renders the cookware's alias.
+/// - `cookware.note` renders the note attached to the cookware.
+/// - `cookware.quantity` provides access to a [`Value`][`cookware::Value`] as a string.
 #[derive(Clone, Debug, Serialize)]
 pub struct Cookware(cooklang::Cookware);
 
 impl From<cooklang::Cookware> for Cookware {
     fn from(cookware: cooklang::Cookware) -> Self {
         Self(cookware)
+    }
+}
+
+impl From<Cookware> for minijinja::Value {
+    fn from(value: Cookware) -> Self {
+        Self::from_object(value)
     }
 }
 
@@ -20,8 +45,8 @@ impl minijinja::value::Object for Cookware {
 
     fn get_value(self: &std::sync::Arc<Self>, key: &minijinja::Value) -> Option<minijinja::Value> {
         match key.as_str()? {
-            "note" => self.0.note.as_ref().map(minijinja::Value::from),
             "name" => Some(minijinja::Value::from(&self.0.name)),
+            "note" => self.0.note.as_ref().map(minijinja::Value::from),
             "alias" => self.0.alias.as_ref().map(minijinja::Value::from),
             "quantity" => self
                 .0
@@ -61,7 +86,7 @@ mod tests {
 
         // Build context
         let context = context! {
-            cookware => Value::from_object(Cookware::from(recipe.cookware[0].clone()))
+            cookware => Value::from(Cookware(recipe.cookware[0].clone()))
         };
 
         let template = env.get_template("test").unwrap();

@@ -40,7 +40,7 @@ struct TemplateContext {
     datastore: Option<Datastore>,
     sections: Vec<minijinja::Value>,
     ingredients: Vec<minijinja::Value>,
-    cookware: Vec<Cookware>,
+    cookware: Vec<minijinja::Value>,
     metadata: minijinja::Value,
 }
 
@@ -59,7 +59,12 @@ impl TemplateContext {
                 .map(Ingredient::from)
                 .map(minijinja::Value::from)
                 .collect(),
-            cookware: recipe.cookware.into_iter().map(Cookware::from).collect(),
+            cookware: recipe
+                .cookware
+                .into_iter()
+                .map(Cookware::from)
+                .map(minijinja::Value::from)
+                .collect(),
             metadata: Metadata::from(recipe.metadata).into(),
         }
     }
