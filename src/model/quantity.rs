@@ -2,10 +2,7 @@ use std::fmt::Display;
 
 /// Wrapper for [`cooklang::Quantity`] for reporting, used in [`Ingredient`][`super::Ingredient`].
 ///
-/// This is one of the simplest wrappers. It Implements [`Display`][`std::fmt::Display`]
-/// and uses that for its object rendering. Also provides access to its components.
-///
-/// # Use
+/// # Usage
 ///
 /// Constructed from [`cooklang::Quantity`] and can be converted into [`minijinja::Value`].
 ///
@@ -23,14 +20,6 @@ use std::fmt::Display;
 /// While the quantity's value can be used in a template and passed through the builtin
 /// [`float`][minijinja::filters::float] filter, this only works if the value is a number,
 /// and not a range or text.
-///
-/// # Example
-///
-/// Assuming `cooklang quantity` is a [`cooklang::Quantity`] within an [`cooklang::Ingredient`] in a [`cooklang::ScaledRecipe`]:
-///
-/// ```ignore
-/// let value: minijinja::Value = minijinja::Value::from(Quantity(cooklang_quantity));
-/// ```
 #[derive(Debug)]
 pub struct Quantity(cooklang::Quantity);
 
