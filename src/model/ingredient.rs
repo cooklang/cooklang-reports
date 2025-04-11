@@ -1,4 +1,5 @@
 //! Model for ingredient.
+use super::Quantity;
 use serde::Serialize;
 
 /// Struct representing an ingredient in a Cooklang recipe.
@@ -28,19 +29,20 @@ impl minijinja::value::Object for Ingredient {
     /// Access a given key within this ingredient in a template.
     ///
     /// # Valid keys
+    /// - `name`
     /// - `note`
     /// - `alias`
     /// - `quantity`
     fn get_value(self: &std::sync::Arc<Self>, key: &minijinja::Value) -> Option<minijinja::Value> {
         match key.as_str()? {
-            "note" => self.0.note.as_ref().map(minijinja::Value::from),
             "name" => Some(minijinja::Value::from(&self.0.name)),
+            "note" => self.0.note.as_ref().map(minijinja::Value::from),
             "alias" => self.0.alias.as_ref().map(minijinja::Value::from),
             "quantity" => self
                 .0
                 .quantity
-                .as_ref()
-                .map(ToString::to_string)
+                .clone()
+                .map(Quantity::from)
                 .map(minijinja::Value::from),
             _ => None,
         }

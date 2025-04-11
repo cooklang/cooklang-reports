@@ -74,7 +74,7 @@ mod tests {
     fn metadata(recipe: &str, template: &str, expected: &str) {
         let (recipe, env) = get_recipe_and_env(recipe, template);
         let context = context! {
-            metadata => Value::from(Metadata::from(recipe.metadata))
+            metadata => Value::from(Metadata::from(recipe.metadata)),
         };
 
         let template = env.get_template("test").unwrap();
