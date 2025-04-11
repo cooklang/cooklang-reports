@@ -11,7 +11,7 @@ use cooklang::{Converter, CooklangParser, Extensions, ScaledRecipe};
 use filters::{format_price_filter, numeric_filter};
 use functions::get_from_datastore;
 use minijinja::Environment;
-use model::{Cookware, Ingredient, Section};
+use model::{Cookware, Ingredient, Metadata, Section};
 use serde::Serialize;
 use thiserror::Error;
 use yaml_datastore::Datastore;
@@ -41,7 +41,7 @@ struct TemplateContext {
     sections: Vec<minijinja::Value>,
     ingredients: Vec<minijinja::Value>,
     cookware: Vec<Cookware>,
-    metadata: cooklang::Metadata,
+    metadata: minijinja::Value,
 }
 
 impl TemplateContext {
@@ -60,7 +60,7 @@ impl TemplateContext {
                 .map(minijinja::Value::from_object)
                 .collect(),
             cookware: recipe.cookware.into_iter().map(Cookware::from).collect(),
-            metadata: recipe.metadata,
+            metadata: Metadata::from(recipe.metadata).into(),
         }
     }
 }
@@ -327,7 +327,7 @@ mod tests {
     }
 
     #[test]
-    fn metadata() {
+    fn metadata_render() {
         // Use Pancakes.cook from test data
         let recipe_path = get_test_data_path()
             .join("recipes")
@@ -336,7 +336,35 @@ mod tests {
 
         let template: &str = indoc! {"
             # Metadata
-            {%- for key, value in metadata.map | items %}
+            {{ metadata }}
+        "};
+
+        let result = render_template(&recipe, template).unwrap();
+        let expected = indoc! {"
+            # Metadata
+            ---
+            title: Chinese-Style Udon Noodles
+            description: A quick, simple, yet satisfying take on a Chinese-style noodle dish.
+            author: Dan Fego
+            servings: 2
+            tags:
+            - vegan
+            ---
+            "};
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn metadata_enumerate() {
+        // Use Pancakes.cook from test data
+        let recipe_path = get_test_data_path()
+            .join("recipes")
+            .join("Chinese Udon Noodles.cook");
+        let recipe = std::fs::read_to_string(recipe_path).unwrap();
+
+        let template: &str = indoc! {"
+            # Metadata
+            {%- for key, value in metadata | items %}
             - {{ key }}: {{ value }}
             {%- endfor %}
         "};
