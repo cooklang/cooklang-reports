@@ -1,10 +1,41 @@
 use super::ContentList;
 use std::fmt::Display;
 
+/// Wrapper for [`cooklang::Section`] for reporting.
+///
+/// # Usage
+///
+/// Constructed from [`cooklang::Section`] and can be converted into [`minijinja::Value`].
+///
+/// If you have a `section`, then the following are valid ways to use it.
+///
+/// ```text
+/// {{ section }}
+/// {{ section.name }}
+/// ```
+///
+/// The usage `{{ section }}` will render the entire section in a human-readable default format.
+///
+/// `{{ section.name }}` will render the name of the section.
+///
+/// The section may also be iterated over in a template, which will enumerate all its contents. Each
+/// part below is a [`Content`][`super::Content`].
+///
+/// ```text
+/// {% for part in section %}
+/// {{ part }}
+/// {% endfor %}
+/// ```
 #[derive(Clone, Debug)]
 pub struct Section {
     name: Option<String>,
     content: ContentList,
+}
+
+impl From<Section> for minijinja::Value {
+    fn from(value: Section) -> Self {
+        Self::from_object(value)
+    }
 }
 
 impl Section {
@@ -35,17 +66,12 @@ impl minijinja::value::Object for Section {
     fn get_value(self: &std::sync::Arc<Self>, key: &minijinja::Value) -> Option<minijinja::Value> {
         // If it's an index, fetch it.
         if let Some(index) = key.as_usize() {
-            return self
-                .content
-                .get(index)
-                .cloned()
-                .map(minijinja::Value::from_object);
+            return self.content.get(index).cloned().map(minijinja::Value::from);
         }
 
         match key.as_str()? {
             "name" if self.name.is_some() => Some(minijinja::Value::from(self.name.clone())),
             "name" if self.name.is_none() => Some(minijinja::Value::from("")),
-            "content" => Some(minijinja::Value::from_object(self.content.clone())),
             _ => None,
         }
     }
@@ -98,7 +124,7 @@ mod tests {
     fn section(recipe: &str, template: &str, expected: &str) {
         let (recipe, env) = get_recipe_and_env(recipe, template);
         let context = context! {
-            section => Value::from_object(Section::from_recipe_section(&recipe, &recipe.sections[0]))
+            section => Value::from(Section::from_recipe_section(&recipe, &recipe.sections[0]))
         };
 
         let template = env.get_template("test").unwrap();
