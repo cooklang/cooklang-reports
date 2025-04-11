@@ -1,7 +1,14 @@
 //! A Rust library for generating reports from [Cooklang][00] recipes using [Jinja2][01]-style templates.
 //!
-//! The template format is not yet fully documented.
-//! Look at the tests in the repository for examples.
+//! Templates are provided with multiple context variables:
+//!
+//! - `scale`: a float representing the recipe scaling factor (i.e. 1 by default)
+//! - `sections`: the sections, containing steps and text, within the recipe
+//! - `ingredients`: the list of ingredients in the recipe
+//! - `cookware`: the list of cookware pieces in the recipe
+//! - `metadata`: the dictionary of metadata from the recipe
+//!
+//! For more details about each of these, look through the source for the `models` module`.`
 //!
 //! [00]: https://cooklang.org/
 //! [01]: https://jinja.palletsprojects.com/en/stable/
