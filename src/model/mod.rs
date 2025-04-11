@@ -8,15 +8,15 @@ mod quantity;
 mod section;
 mod step;
 
-pub use content::Content;
-pub use content_list::ContentList;
-pub use cookware::Cookware;
-pub use ingredient::Ingredient;
-pub use item::Item;
-pub use metadata::Metadata;
-pub use quantity::Quantity;
-pub use section::Section;
-pub use step::Step;
+pub(crate) use content::Content;
+pub(crate) use content_list::ContentList;
+pub(crate) use cookware::Cookware;
+pub(crate) use ingredient::Ingredient;
+pub(crate) use item::Item;
+pub(crate) use metadata::Metadata;
+pub(crate) use quantity::Quantity;
+pub(crate) use section::Section;
+pub(crate) use step::Step;
 
 #[cfg(test)]
 mod tests {
