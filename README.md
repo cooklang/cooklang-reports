@@ -1,6 +1,6 @@
 # Cooklang Reports
 
-A PoC of a Rust library for generating reports from Cooklang recipes using Jinja2-style templates.
+A WIP Rust library for generating reports from Cooklang recipes using Jinja2-style templates.
 
 ## Features
 

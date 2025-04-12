@@ -1,7 +1,14 @@
 //! A Rust library for generating reports from [Cooklang][00] recipes using [Jinja2][01]-style templates.
 //!
-//! The template format is not yet fully documented.
-//! Look at the tests in the repository for examples.
+//! Templates are provided with multiple context variables:
+//!
+//! - `scale`: a float representing the recipe scaling factor (i.e. 1 by default)
+//! - `sections`: the sections, containing steps and text, within the recipe
+//! - `ingredients`: the list of ingredients in the recipe
+//! - `cookware`: the list of cookware pieces in the recipe
+//! - `metadata`: the dictionary of metadata from the recipe
+//!
+//! For more details about each of these, look through the source for the `models` module`.`
 //!
 //! [00]: https://cooklang.org/
 //! [01]: https://jinja.palletsprojects.com/en/stable/
@@ -11,6 +18,7 @@ use cooklang::{Converter, CooklangParser, Extensions, ScaledRecipe};
 use filters::{format_price_filter, numeric_filter};
 use functions::get_from_datastore;
 use minijinja::Environment;
+use model::{Cookware, Ingredient, Metadata, Section};
 use serde::Serialize;
 use thiserror::Error;
 use yaml_datastore::Datastore;
@@ -18,6 +26,7 @@ use yaml_datastore::Datastore;
 pub mod config;
 mod filters;
 mod functions;
+mod model;
 
 /// Error type for this crate.
 #[derive(Error, Debug)]
@@ -31,37 +40,41 @@ pub enum Error {
     TemplateError(#[from] minijinja::Error),
 }
 
-/// An Ingredient that's used here instead of the parser's one, for template access.
-#[derive(Serialize)]
-struct Ingredient {
-    name: String,
-    quantity: Option<String>,
-    note: Option<String>,
-}
-
-/// Return a vector of [`Ingredient`] for placing in [`RecipeContext`]
-fn recipe_ingredients(recipe: &ScaledRecipe) -> Vec<Ingredient> {
-    recipe
-        .ingredients
-        .iter()
-        .map(|ingredient| Ingredient {
-            name: ingredient.name.to_string(),
-            quantity: ingredient.quantity.as_ref().map(ToString::to_string),
-            note: ingredient.note.clone(),
-        })
-        .collect()
-}
-
-/// Context passed to the template.
-///
-/// The entire recipe is in here at this moment, flattened, for easy access to its fields.
-#[derive(Serialize)]
-struct RecipeContext {
-    #[serde(flatten)]
-    recipe: ScaledRecipe,
+/// Context passed to the template
+#[derive(Debug, Serialize)]
+struct TemplateContext {
     scale: f64,
     datastore: Option<Datastore>,
-    ingredients: Vec<Ingredient>,
+    sections: Vec<minijinja::Value>,
+    ingredients: Vec<minijinja::Value>,
+    cookware: Vec<minijinja::Value>,
+    metadata: minijinja::Value,
+}
+
+impl TemplateContext {
+    fn new(recipe: ScaledRecipe, scale: f64, datastore: Option<Datastore>) -> TemplateContext {
+        TemplateContext {
+            scale,
+            datastore,
+            sections: Section::from_recipe_sections(&recipe)
+                .into_iter()
+                .map(minijinja::Value::from_object)
+                .collect(),
+            ingredients: recipe
+                .ingredients
+                .into_iter()
+                .map(Ingredient::from)
+                .map(minijinja::Value::from)
+                .collect(),
+            cookware: recipe
+                .cookware
+                .into_iter()
+                .map(Cookware::from)
+                .map(minijinja::Value::from)
+                .collect(),
+            metadata: Metadata::from(recipe.metadata).into(),
+        }
+    }
 }
 
 /// Render a recipe with the deault configuration.
@@ -103,28 +116,25 @@ pub fn render_template_with_config(
     let recipe_parser = CooklangParser::new(Extensions::all(), Converter::default());
     let (unscaled_recipe, _warnings) = recipe_parser.parse(recipe).into_result()?;
 
-    // Create final, scaled recipe
-    let converter = Converter::default();
-    let recipe = unscaled_recipe.scale(config.scale, &converter);
-
-    let mut template_environment = Environment::new();
-    template_environment.add_template("base", template)?;
-    template_environment.add_function("db", get_from_datastore);
-    template_environment.add_filter("numeric", numeric_filter);
-    template_environment.add_filter("format_price", format_price_filter);
-
+    // Create final, scaled recipes
+    let recipe = unscaled_recipe.scale(config.scale, &Converter::default());
     let datastore = config.datastore_path.as_ref().map(Datastore::open);
-    let ingredients = recipe_ingredients(&recipe);
 
-    let context = RecipeContext {
-        recipe,
-        scale: config.scale,
-        datastore,
-        ingredients,
-    };
+    let template_context = TemplateContext::new(recipe, config.scale, datastore);
+    let template_environment = template_environment(template)?;
 
-    let tmpl = template_environment.get_template("base")?;
-    Ok(tmpl.render(context)?)
+    let template: minijinja::Template<'_, '_> = template_environment.get_template("base")?;
+    Ok(template.render(template_context)?)
+}
+
+/// Build an environment for the given template.
+fn template_environment(template: &str) -> Result<Environment<'_>, Error> {
+    let mut env = Environment::new();
+    env.add_template("base", template)?;
+    env.add_function("db", get_from_datastore);
+    env.add_filter("numeric", numeric_filter);
+    env.add_filter("format_price", format_price_filter);
+    Ok(env)
 }
 
 #[cfg(test)]
@@ -210,7 +220,7 @@ mod tests {
         let template = indoc! {"
             # Ingredients ({{ scale }}x)
             {%- for ingredient in ingredients %}
-            - {{ ingredient.name }}{% if ingredient.quantity %}: {{ ingredient.quantity }}{% if ingredient.unit %} {{ ingredient.unit }}{% endif %}{% endif %}
+            - {{ ingredient.name }}: {{ ingredient.quantity }}
             {%- endfor %}
         "};
 
@@ -301,6 +311,188 @@ mod tests {
 
             Total: $1.19"};
 
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn cookware() {
+        // Use Pancakes.cook from test data
+        let recipe_path = get_test_data_path().join("recipes").join("Pancakes.cook");
+        let recipe = std::fs::read_to_string(recipe_path).unwrap();
+
+        let template: &str = indoc! {"
+            # Cookware
+            {%- for item in cookware %}
+            - {{ item.name }}
+            {%- endfor %}
+        "};
+
+        // Test default scaling (1x)
+        let result = render_template(&recipe, template).unwrap();
+        let expected = indoc! {"
+            # Cookware
+            - whisk
+            - large bowl"};
+        assert_eq!(result, expected);
+
+        // TODO scaling? should it? No, right?
+    }
+
+    #[test]
+    fn metadata_render() {
+        // Use Pancakes.cook from test data
+        let recipe_path = get_test_data_path()
+            .join("recipes")
+            .join("Chinese Udon Noodles.cook");
+        let recipe = std::fs::read_to_string(recipe_path).unwrap();
+
+        let template: &str = indoc! {"
+            # Metadata
+            {{ metadata }}
+        "};
+
+        let result = render_template(&recipe, template).unwrap();
+        let expected = indoc! {"
+            # Metadata
+            ---
+            title: Chinese-Style Udon Noodles
+            description: A quick, simple, yet satisfying take on a Chinese-style noodle dish.
+            author: Dan Fego
+            servings: 2
+            tags:
+            - vegan
+            ---
+            "};
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn metadata_enumerate() {
+        // Use Pancakes.cook from test data
+        let recipe_path = get_test_data_path()
+            .join("recipes")
+            .join("Chinese Udon Noodles.cook");
+        let recipe = std::fs::read_to_string(recipe_path).unwrap();
+
+        let template: &str = indoc! {"
+            # Metadata
+            {%- for key, value in metadata | items %}
+            - {{ key }}: {{ value }}
+            {%- endfor %}
+        "};
+
+        let result = render_template(&recipe, template).unwrap();
+        let expected = indoc! {"
+            # Metadata
+            - title: Chinese-Style Udon Noodles
+            - description: A quick, simple, yet satisfying take on a Chinese-style noodle dish.
+            - author: Dan Fego
+            - servings: 2
+            - tags: [\"vegan\"]"};
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn sections() {
+        let recipe_path = get_test_data_path()
+            .join("recipes")
+            .join("Contrived Eggs.cook");
+        let recipe = std::fs::read_to_string(recipe_path).unwrap();
+
+        let template: &str = indoc! {"
+            # Recipe
+            {%- for section in sections %}
+            ## {{ section.name }}
+            {%- endfor %}
+        "};
+
+        let result = render_template(&recipe, template).unwrap();
+        let expected = indoc! {"
+            # Recipe
+            ## Preparation
+            ## Cooking
+            ## Consumption"};
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn sections_default() {
+        let recipe_path = get_test_data_path().join("recipes").join("Pancakes.cook");
+        let recipe = std::fs::read_to_string(recipe_path).unwrap();
+
+        let template: &str = indoc! {"
+            # Recipe
+            {%- for section in sections %}
+            {% if section.name %}
+            ## {{ section.name }}
+            {% endif %}
+            {%- endfor %}
+        "};
+
+        let result = render_template(&recipe, template).unwrap();
+        let expected = indoc! {"
+        # Recipe
+        "};
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn sections_with_text() {
+        let recipe_path = get_test_data_path().join("recipes").join("Blog Post.cook");
+        let recipe = std::fs::read_to_string(recipe_path).unwrap();
+
+        // I hate the nesting in this template but I couldn't get the whitespace
+        // modifiers to work the way I want. I hate jinja whitespace.
+        let template: &str = indoc! {"
+        {%- for section in sections -%}
+        {{ section }}
+        {%- endfor -%}\n
+        "};
+
+        let result = render_template(&recipe, template).unwrap();
+        let expected = indoc! {"
+        = My Life Story
+
+        This is a blog post about something.
+
+        It has many paragraphs.
+
+        = Recipe
+
+        Nope, just kidding.
+
+        "};
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn one_section_with_steps() {
+        let recipe = indoc! {"
+        Put @butter{1%pat} into #frying pan{} on low heat.
+
+        Crack @egg into pan.
+
+        Fry egg on low heat until cooked.
+
+        Enjoy.
+        "};
+
+        let template: &str = indoc! {"
+            # Steps
+            {% for content in sections[0] %}
+            {{ content }}
+            {%- endfor %}
+        "};
+
+        let result = render_template(recipe, template).unwrap();
+        println!("{result}");
+        let expected = indoc! {"
+            # Steps
+
+            1. Put 1 pat butter into frying pan on low heat.
+            2. Crack egg into pan.
+            3. Fry egg on low heat until cooked.
+            4. Enjoy."};
         assert_eq!(result, expected);
     }
 }
