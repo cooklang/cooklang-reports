@@ -29,7 +29,7 @@ impl From<Content> for minijinja::Value {
 
 impl Content {
     pub(super) fn from_recipe_content(
-        recipe: &cooklang::ScaledRecipe,
+        recipe: &cooklang::Recipe,
         content: cooklang::Content,
     ) -> Self {
         match content {

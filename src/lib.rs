@@ -14,7 +14,7 @@
 //! [01]: https://jinja.palletsprojects.com/en/stable/
 #[doc = include_str!("../README.md")]
 use config::Config;
-use cooklang::{Converter, CooklangParser, Extensions, ScaledRecipe};
+use cooklang::{Converter, CooklangParser, Extensions, Recipe};
 use filters::{format_price_filter, numeric_filter};
 use functions::get_from_datastore;
 use minijinja::Environment;
@@ -52,7 +52,7 @@ struct TemplateContext {
 }
 
 impl TemplateContext {
-    fn new(recipe: ScaledRecipe, scale: f64, datastore: Option<Datastore>) -> TemplateContext {
+    fn new(recipe: Recipe, scale: f64, datastore: Option<Datastore>) -> TemplateContext {
         TemplateContext {
             scale,
             datastore,
@@ -114,10 +114,10 @@ pub fn render_template_with_config(
 ) -> Result<String, Error> {
     // Parse and validate recipe string
     let recipe_parser = CooklangParser::new(Extensions::all(), Converter::default());
-    let (unscaled_recipe, _warnings) = recipe_parser.parse(recipe).into_result()?;
+    let (mut recipe, _warnings) = recipe_parser.parse(recipe).into_result()?;
 
-    // Create final, scaled recipes
-    let recipe = unscaled_recipe.scale(config.scale, &Converter::default());
+    // Scale the recipe
+    recipe.scale(config.scale, &Converter::default());
     let datastore = config.datastore_path.as_ref().map(Datastore::open);
 
     let template_context = TemplateContext::new(recipe, config.scale, datastore);

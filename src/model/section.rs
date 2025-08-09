@@ -40,7 +40,7 @@ impl From<Section> for minijinja::Value {
 
 impl Section {
     pub(crate) fn from_recipe_section(
-        recipe: &cooklang::ScaledRecipe,
+        recipe: &cooklang::Recipe,
         section: &cooklang::Section,
     ) -> Self {
         Self {
@@ -49,7 +49,7 @@ impl Section {
         }
     }
 
-    pub(crate) fn from_recipe_sections(recipe: &cooklang::ScaledRecipe) -> Vec<Self> {
+    pub(crate) fn from_recipe_sections(recipe: &cooklang::Recipe) -> Vec<Self> {
         recipe
             .sections
             .iter()

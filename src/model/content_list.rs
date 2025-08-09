@@ -19,7 +19,7 @@ impl From<ContentList> for minijinja::Value {
 
 impl ContentList {
     pub(crate) fn from_recipe_contents(
-        recipe: &cooklang::ScaledRecipe,
+        recipe: &cooklang::Recipe,
         contents: Vec<cooklang::Content>,
     ) -> Self {
         Self(

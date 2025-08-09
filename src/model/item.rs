@@ -27,7 +27,7 @@ impl From<Item> for minijinja::Value {
 }
 
 impl Item {
-    pub(super) fn from_recipe_item(recipe: &cooklang::ScaledRecipe, item: cooklang::Item) -> Self {
+    pub(super) fn from_recipe_item(recipe: &cooklang::Recipe, item: cooklang::Item) -> Self {
         match item {
             cooklang::Item::Text { value } => Self::Text(value),
             cooklang::Item::Ingredient { index } => {

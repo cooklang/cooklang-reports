@@ -41,7 +41,7 @@ impl From<Step> for minijinja::Value {
 }
 
 impl Step {
-    pub(super) fn from_recipe_step(recipe: &cooklang::ScaledRecipe, step: cooklang::Step) -> Self {
+    pub(super) fn from_recipe_step(recipe: &cooklang::Recipe, step: cooklang::Step) -> Self {
         Self {
             items: step
                 .items
