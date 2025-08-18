@@ -1,0 +1,16 @@
+# Shopping List
+
+Generated from: {{ metadata.title | default("Recipe") }}
+{%- if scale != 1.0 %}
+Scaled: {{ scale }}x
+{%- endif %}
+
+## Ingredients Needed
+
+{%- set all_ingredients = get_ingredient_list(ingredients) %}
+{%- for ingredient in all_ingredients %}
+- [ ] {{ ingredient.name }}: {{ ingredient.quantities }}
+{%- endfor %}
+
+---
+*Generated with cooklang-reports*

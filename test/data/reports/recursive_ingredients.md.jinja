@@ -1,0 +1,16 @@
+# Recursive Ingredients List
+
+This template demonstrates extracting ingredients recursively from recipes that reference other recipes.
+
+## Direct Ingredients Only
+{%- for ingredient in ingredients %}
+- {{ ingredient.name }}{% if ingredient.quantity %}: {{ ingredient.quantity }}{% endif %}
+{%- endfor %}
+
+## All Ingredients
+
+### Using ingredients from current recipe
+{%- set all_from_ingredients = get_ingredient_list(ingredients) %}
+{%- for ingredient in all_from_ingredients %}
+- **{{ ingredient.name }}**: {{ ingredient.quantities }}
+{%- endfor %}

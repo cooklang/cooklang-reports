@@ -19,14 +19,16 @@ use std::path::PathBuf;
 pub struct Config {
     pub(crate) scale: f64,
     pub(crate) datastore_path: Option<PathBuf>,
+    pub(crate) base_path: Option<PathBuf>,
 }
 
 impl Default for Config {
-    /// Return a default [`Config`] with a scale of 1 and no datastore path.
+    /// Return a default [`Config`] with a scale of 1, no datastore path, and base path set to the current working directory.
     fn default() -> Self {
         Self {
             scale: 1.0,
             datastore_path: None,
+            base_path: std::env::current_dir().ok(),
         }
     }
 }
@@ -43,14 +45,16 @@ impl Config {
 pub struct ConfigBuilder {
     scale: f64,
     datastore_path: Option<PathBuf>,
+    base_path: Option<PathBuf>,
 }
 
 impl Default for ConfigBuilder {
-    /// Return a default [`ConfigBuilder`] with a scale of 1 and no datastore path.
+    /// Return a default [`ConfigBuilder`] with a scale of 1, no datastore path, and base path set to the current working directory.
     fn default() -> Self {
         Self {
             scale: 1.0,
             datastore_path: None,
+            base_path: std::env::current_dir().ok(),
         }
     }
 }
@@ -68,11 +72,18 @@ impl ConfigBuilder {
         self
     }
 
+    /// Set a base path for recipe lookups.
+    pub fn base_path<P: Into<PathBuf>>(&mut self, base_path: P) -> &mut Self {
+        self.base_path = Some(base_path.into());
+        self
+    }
+
     /// Return a new [`Config`] based on the builder's properties.
     pub fn build(&mut self) -> Config {
         Config {
             scale: self.scale,
             datastore_path: self.datastore_path.clone(),
+            base_path: self.base_path.clone(),
         }
     }
 }
