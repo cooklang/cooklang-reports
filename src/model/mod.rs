@@ -8,6 +8,7 @@ mod metadata;
 mod quantity;
 mod section;
 mod step;
+mod timer;
 
 pub(crate) use content::Content;
 pub(crate) use content_list::ContentList;
@@ -19,6 +20,7 @@ pub(crate) use metadata::Metadata;
 pub(crate) use quantity::{Quantity, quantity_from_value};
 pub(crate) use section::Section;
 pub(crate) use step::Step;
+pub(crate) use timer::Timer;
 
 #[cfg(test)]
 mod tests {

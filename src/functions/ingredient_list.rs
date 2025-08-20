@@ -46,7 +46,10 @@ pub fn get_ingredient_list(
         1.0,
         should_expand,
     )
-    .map_err(|e| Error::new(ErrorKind::InvalidOperation, e.to_string()))?;
+    .map_err(|e| {
+        // Preserve the original error message for better debugging
+        Error::new(ErrorKind::InvalidOperation, format!("{e:#}"))
+    })?;
 
     // Convert to model IngredientList and return as Value
     let model_list = ModelIngredientList::from_cooklang(list);

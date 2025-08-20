@@ -53,12 +53,19 @@ impl Error {
     /// - Context-specific help for common template errors
     #[must_use]
     pub fn format_with_source(&self) -> String {
+        use std::fmt::Write;
+
         let mut output = String::new();
 
         // Add template-specific context if it's a template error
         if let Error::TemplateError(minijinja_err) = self {
-            // Use minijinja's debug display which includes line numbers and source context
-            use std::fmt::Write;
+            // First show the actual error message
+            let error_detail = minijinja_err.detail().unwrap_or_default();
+            if !error_detail.is_empty() {
+                let _ = writeln!(output, "Error: {error_detail}");
+            }
+
+            // Then show the debug info with source location
             let _ = write!(output, "{}", minijinja_err.display_debug_info());
 
             // Add helpful hints based on error type
@@ -77,23 +84,40 @@ impl Error {
                     output.push_str("\n  • You're not trying to access properties on null values");
                 }
                 minijinja::ErrorKind::InvalidOperation => {
-                    output.push_str("\n\nHint: Invalid operation. Check that:");
-                    output.push_str("\n  • You're using the correct types for operations");
-                    output.push_str("\n  • Functions are called with correct arguments");
-                    output.push_str("\n  • Filters are applied to compatible values");
+                    // Check if the error message contains specific keywords for better hints
+                    let error_str = minijinja_err.to_string();
+                    if error_str.contains("Failed to scale recipe") {
+                        output.push_str("\n\nHint: Recipe scaling failed. Check that:");
+                        output.push_str("\n  • The referenced recipe has the required metadata (servings or yield)");
+                        output.push_str(
+                            "\n  • The units in the reference match the recipe's metadata",
+                        );
+                        output.push_str("\n  • The recipe file exists and is valid");
+                    } else {
+                        output.push_str("\n\nHint: Invalid operation. Check that:");
+                        output.push_str("\n  • You're using the correct types for operations");
+                        output.push_str("\n  • Functions are called with correct arguments");
+                        output.push_str("\n  • Filters are applied to compatible values");
+                    }
+                }
+                minijinja::ErrorKind::NonKey => {
+                    output.push_str("\n\nHint: Key not found. Check that:");
+                    output.push_str("\n  • The key exists in your datastore");
+                    output.push_str("\n  • The key path is spelled correctly");
+                    output.push_str("\n  • String transformations are producing the expected keys");
                 }
                 _ => {}
             }
-        } else {
-            // For non-template errors, use the standard display
-            use std::fmt::Write;
-            let _ = write!(output, "Error: {self:#}");
+            // Don't traverse the error chain for template errors since display_debug_info already shows it
+            return output;
         }
 
-        // Traverse the error chain
+        // For non-template errors, use the standard display
+        let _ = write!(output, "Error: {self:#}");
+
+        // Traverse the error chain for non-template errors
         let mut current_error: &dyn std::error::Error = self;
         while let Some(source) = current_error.source() {
-            use std::fmt::Write;
             let _ = write!(output, "\n\nCaused by:\n    {source:#}");
             current_error = source;
         }

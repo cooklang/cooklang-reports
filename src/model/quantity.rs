@@ -1,4 +1,5 @@
 use cooklang::quantity::{Quantity as CooklangQuantity, Value as QuantityValue};
+use serde::Serialize;
 use std::fmt::Display;
 
 /// Wrapper for [`cooklang::Quantity`] for reporting, used in [`Ingredient`][`super::Ingredient`].
@@ -21,7 +22,7 @@ use std::fmt::Display;
 /// While the quantity's value can be used in a template and passed through the builtin
 /// [`float`][minijinja::filters::float] filter, this only works if the value is a number,
 /// and not a range or text.
-#[derive(Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub struct Quantity(cooklang::Quantity);
 
 impl From<cooklang::Quantity> for Quantity {

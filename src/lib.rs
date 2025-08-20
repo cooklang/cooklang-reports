@@ -15,7 +15,10 @@
 #[doc = include_str!("../README.md")]
 use config::Config;
 use cooklang::Recipe;
-use filters::{format_price_filter, numeric_filter};
+use filters::{
+    camelize_filter, dasherize_filter, format_price_filter, humanize_filter, numeric_filter,
+    titleize_filter, underscore_filter, upcase_first_filter,
+};
 use functions::{get_from_datastore, get_ingredient_list};
 use minijinja::Environment;
 use model::{Cookware, Ingredient, Metadata, Section};
@@ -149,6 +152,23 @@ fn template_environment(template: &str) -> Result<Environment<'_>, Error> {
     env.add_function("get_ingredient_list", get_ingredient_list);
     env.add_filter("numeric", numeric_filter);
     env.add_filter("format_price", format_price_filter);
+
+    // String transformation filters (also available as functions)
+    env.add_filter("camelize", camelize_filter);
+    env.add_filter("underscore", underscore_filter);
+    env.add_filter("dasherize", dasherize_filter);
+    env.add_filter("humanize", humanize_filter);
+    env.add_filter("titleize", titleize_filter);
+    env.add_filter("upcase_first", upcase_first_filter);
+
+    // Also register as functions for direct calls
+    env.add_function("camelize", camelize_filter);
+    env.add_function("underscore", underscore_filter);
+    env.add_function("dasherize", dasherize_filter);
+    env.add_function("humanize", humanize_filter);
+    env.add_function("titleize", titleize_filter);
+    env.add_function("upcase_first", upcase_first_filter);
+
     Ok(env)
 }
 
@@ -196,6 +216,20 @@ mod tests {
             - milk
             - flour"};
         assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_datastore_missing_key() {
+        // Test that missing keys produce warning and empty value instead of error
+        let datastore_path = get_test_data_path().join("db");
+
+        let recipe = "@ingredient{1}";
+        let template = r#"Missing key: "{{ db("nonexistent.key.path") }}" (should be empty)"#;
+
+        let config = Config::builder().datastore_path(datastore_path).build();
+
+        let result = render_template_with_config(recipe, template, &config).unwrap();
+        assert!(result.contains(r#"Missing key: "" (should be empty)"#));
     }
 
     #[test]
