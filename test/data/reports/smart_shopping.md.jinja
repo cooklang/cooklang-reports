@@ -1,0 +1,30 @@
+# Smart Shopping List
+
+Recipe: {{ metadata.title | default("Untitled") }}
+Scale: {{ scale }}x
+
+## Items to Buy (Not in Pantry)
+
+{%- for (aisle, items) in aisled(excluding_pantry(ingredients)) | items %}
+
+### {{ aisle | titleize }}
+{%- for ingredient in items %}
+- [ ] {{ ingredient.name | titleize }}: {{ ingredient.quantity }}
+{%- endfor %}
+{%- endfor %}
+
+---
+
+## Already Have in Pantry
+
+{%- for ingredient in from_pantry(ingredients) %}
+- ✓ {{ ingredient.name | titleize }}: {{ ingredient.quantity }}
+{%- endfor %}
+
+---
+
+## All Ingredients Summary
+
+Total items: {{ ingredients | length }}
+Need to buy: {{ excluding_pantry(ingredients) | length }}
+Already have: {{ from_pantry(ingredients) | length }}

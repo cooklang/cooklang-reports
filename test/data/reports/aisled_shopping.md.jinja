@@ -1,0 +1,22 @@
+# Shopping List by Aisle
+
+Recipe: {{ metadata.title | default("Untitled") }}
+Scale: {{ scale }}x
+
+## Organized by Store Aisle
+
+{%- for aisle, items in aisled(ingredients) | items %}
+
+### {{ aisle | titleize }}
+{%- for ingredient in items %}
+- [ ] {{ ingredient.name | titleize }}: {{ ingredient.quantity }}
+{%- endfor %}
+{%- endfor %}
+
+---
+
+## All Ingredients (Flat List)
+
+{%- for ingredient in ingredients %}
+- {{ ingredient.name }}: {{ ingredient.quantity }}
+{%- endfor %}

@@ -14,7 +14,9 @@ pub fn get_from_datastore(state: &State, keypath: &str) -> Result<MiniValue, Min
         .ok_or(non_key_error("bad datastore"))
         .and_then(|x| Option::<Datastore>::deserialize(x)?.ok_or(non_key_error("no datastore")))?;
 
-    if let Ok(value) = datastore.get(keypath) { Ok(value) } else {
+    if let Ok(value) = datastore.get(keypath) {
+        Ok(value)
+    } else {
         eprintln!("Warning: key '{keypath}' not found in datastore, using empty value");
         Ok(MiniValue::from(""))
     }

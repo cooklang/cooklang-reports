@@ -9,7 +9,7 @@ documentation = "https://docs.rs/cooklang-reports"
 readme = "README.md"
 
 [dependencies]
-cooklang = { path = "../cooklang-rs", default-features = false, features = ["aisle"] }
+cooklang = { path = "../cooklang-rs", default-features = false, features = ["aisle", "pantry"] }
 cooklang-find = { path = "../cooklang-find" }
 minijinja = { version = "2.8", features = ["preserve_order", "debug"] }
 serde = { version = "1.0", features = ["derive"] }

@@ -20,15 +20,19 @@ pub struct Config {
     pub(crate) scale: f64,
     pub(crate) datastore_path: Option<PathBuf>,
     pub(crate) base_path: Option<PathBuf>,
+    pub(crate) aisle_path: Option<PathBuf>,
+    pub(crate) pantry_path: Option<PathBuf>,
 }
 
 impl Default for Config {
-    /// Return a default [`Config`] with a scale of 1, no datastore path, and base path set to the current working directory.
+    /// Return a default [`Config`] with a scale of 1, no datastore path, aisle path, pantry path, and base path set to the current working directory.
     fn default() -> Self {
         Self {
             scale: 1.0,
             datastore_path: None,
             base_path: std::env::current_dir().ok(),
+            aisle_path: None,
+            pantry_path: None,
         }
     }
 }
@@ -46,15 +50,19 @@ pub struct ConfigBuilder {
     scale: f64,
     datastore_path: Option<PathBuf>,
     base_path: Option<PathBuf>,
+    aisle_path: Option<PathBuf>,
+    pantry_path: Option<PathBuf>,
 }
 
 impl Default for ConfigBuilder {
-    /// Return a default [`ConfigBuilder`] with a scale of 1, no datastore path, and base path set to the current working directory.
+    /// Return a default [`ConfigBuilder`] with a scale of 1, no datastore path, aisle path, pantry path, and base path set to the current working directory.
     fn default() -> Self {
         Self {
             scale: 1.0,
             datastore_path: None,
             base_path: std::env::current_dir().ok(),
+            aisle_path: None,
+            pantry_path: None,
         }
     }
 }
@@ -78,12 +86,26 @@ impl ConfigBuilder {
         self
     }
 
+    /// Set a path to an aisle configuration file for ingredient categorization.
+    pub fn aisle_path<P: Into<PathBuf>>(&mut self, aisle_path: P) -> &mut Self {
+        self.aisle_path = Some(aisle_path.into());
+        self
+    }
+
+    /// Set a path to a pantry configuration file for filtering out pantry items.
+    pub fn pantry_path<P: Into<PathBuf>>(&mut self, pantry_path: P) -> &mut Self {
+        self.pantry_path = Some(pantry_path.into());
+        self
+    }
+
     /// Return a new [`Config`] based on the builder's properties.
     pub fn build(&mut self) -> Config {
         Config {
             scale: self.scale,
             datastore_path: self.datastore_path.clone(),
             base_path: self.base_path.clone(),
+            aisle_path: self.aisle_path.clone(),
+            pantry_path: self.pantry_path.clone(),
         }
     }
 }

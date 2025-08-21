@@ -19,7 +19,7 @@ use filters::{
     camelize_filter, dasherize_filter, format_price_filter, humanize_filter, numeric_filter,
     titleize_filter, underscore_filter, upcase_first_filter,
 };
-use functions::{get_from_datastore, get_ingredient_list};
+use functions::{aisled, excluding_pantry, from_pantry, get_from_datastore, get_ingredient_list};
 use minijinja::Environment;
 use model::{Cookware, Ingredient, Metadata, Section};
 use parser::{get_converter, get_parser};
@@ -41,6 +41,8 @@ struct TemplateContext {
     scale: f64,
     datastore: Option<Datastore>,
     base_path: Option<String>,
+    aisle_content: Option<String>,
+    pantry_content: Option<String>,
     sections: Vec<minijinja::Value>,
     ingredients: Vec<minijinja::Value>,
     cookware: Vec<minijinja::Value>,
@@ -53,11 +55,15 @@ impl TemplateContext {
         scale: f64,
         datastore: Option<Datastore>,
         base_path: Option<String>,
+        aisle_content: Option<String>,
+        pantry_content: Option<String>,
     ) -> TemplateContext {
         TemplateContext {
             scale,
             datastore,
             base_path,
+            aisle_content,
+            pantry_content,
             sections: Section::from_recipe_sections(&recipe)
                 .into_iter()
                 .map(minijinja::Value::from_object)
@@ -133,7 +139,64 @@ pub fn render_template_with_config(
         .and_then(|p| p.to_str())
         .map(String::from);
 
-    let template_context = TemplateContext::new(recipe, config.scale, datastore, base_path);
+    // Load aisle configuration content if provided
+    let aisle_content = if let Some(aisle_path) = &config.aisle_path {
+        match std::fs::read_to_string(aisle_path) {
+            Ok(content) => {
+                // Validate the aisle file
+                let result = cooklang::aisle::parse_lenient(&content);
+
+                // Log warnings if present
+                if result.report().has_warnings() {
+                    for warning in result.report().warnings() {
+                        eprintln!("Warning in aisle file: {warning}");
+                    }
+                }
+
+                Some(content)
+            }
+            Err(e) => {
+                eprintln!("Warning: Failed to read aisle file: {e}");
+                None
+            }
+        }
+    } else {
+        None
+    };
+
+    // Load pantry configuration content if provided
+    let pantry_content = if let Some(pantry_path) = &config.pantry_path {
+        match std::fs::read_to_string(pantry_path) {
+            Ok(content) => {
+                // Validate the pantry file
+                let result = cooklang::pantry::parse_lenient(&content);
+
+                // Log warnings if present
+                if result.report().has_warnings() {
+                    for warning in result.report().warnings() {
+                        eprintln!("Warning in pantry file: {warning}");
+                    }
+                }
+
+                Some(content)
+            }
+            Err(e) => {
+                eprintln!("Warning: Failed to read pantry file: {e}");
+                None
+            }
+        }
+    } else {
+        None
+    };
+
+    let template_context = TemplateContext::new(
+        recipe,
+        config.scale,
+        datastore,
+        base_path,
+        aisle_content,
+        pantry_content,
+    );
     let template_environment = template_environment(template)?;
 
     let template: minijinja::Template<'_, '_> = template_environment.get_template("base")?;
@@ -150,6 +213,9 @@ fn template_environment(template: &str) -> Result<Environment<'_>, Error> {
     env.add_template("base", template)?;
     env.add_function("db", get_from_datastore);
     env.add_function("get_ingredient_list", get_ingredient_list);
+    env.add_function("aisled", aisled);
+    env.add_function("excluding_pantry", excluding_pantry);
+    env.add_function("from_pantry", from_pantry);
     env.add_filter("numeric", numeric_filter);
     env.add_filter("format_price", format_price_filter);
 
@@ -800,6 +866,198 @@ mod tests {
 
         "};
         assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_aisled_function() {
+        // Use Pancakes.cook from test data
+        let recipe_path = get_test_data_path().join("recipes").join("Pancakes.cook");
+        let recipe = std::fs::read_to_string(recipe_path).unwrap();
+
+        let aisle_path = get_test_data_path().join("aisles.yaml");
+
+        let template = indoc! {"
+            # Aisled Ingredients
+            {%- for aisle, items in aisled(ingredients) | items %}
+            ## {{ aisle }}
+            {%- for ingredient in items %}
+            - {{ ingredient.name }}: {{ ingredient.quantity }}
+            {%- endfor %}
+            {%- endfor %}
+        "};
+
+        // Test with aisle configuration
+        let config = Config::builder().aisle_path(&aisle_path).build();
+        let result = render_template_with_config(&recipe, template, &config).unwrap();
+
+        // Should have dairy and grains categories
+        assert!(result.contains("## dairy"));
+        assert!(result.contains("## grains"));
+        assert!(result.contains("- eggs:"));
+        assert!(result.contains("- milk:"));
+        assert!(result.contains("- flour:"));
+    }
+
+    #[test]
+    fn test_aisled_with_template_file() {
+        // Use Chinese Udon Noodles which has more ingredients
+        let recipe_path = get_test_data_path()
+            .join("recipes")
+            .join("Chinese Udon Noodles.cook");
+        let recipe = std::fs::read_to_string(recipe_path).unwrap();
+
+        let aisle_path = get_test_data_path().join("aisles.yaml");
+        let template_path = get_test_data_path()
+            .join("reports")
+            .join("aisled_shopping.md.jinja");
+        let template = std::fs::read_to_string(template_path).unwrap();
+
+        let config = Config::builder().aisle_path(&aisle_path).build();
+        let result = render_template_with_config(&recipe, &template, &config).unwrap();
+
+        // Verify the structure
+        assert!(result.contains("# Shopping List by Aisle"));
+        assert!(result.contains("## Organized by Store Aisle"));
+        assert!(result.contains("## All Ingredients (Flat List)"));
+
+        // Print the result for manual inspection
+        println!("Generated Shopping List:\n{result}");
+    }
+
+    #[test]
+    fn test_aisled_function_without_config() {
+        // Use Pancakes.cook from test data
+        let recipe_path = get_test_data_path().join("recipes").join("Pancakes.cook");
+        let recipe = std::fs::read_to_string(recipe_path).unwrap();
+
+        let template = indoc! {"
+            # Aisled Ingredients
+            {%- for aisle, items in aisled(ingredients) | items %}
+            ## {{ aisle }}
+            {%- for ingredient in items %}
+            - {{ ingredient.name }}: {{ ingredient.quantity }}
+            {%- endfor %}
+            {%- endfor %}
+        "};
+
+        // Test without aisle configuration
+        let result = render_template(&recipe, template).unwrap();
+
+        // Should only have "other" category
+        assert!(result.contains("## other"));
+        assert!(result.contains("- eggs:"));
+        assert!(result.contains("- milk:"));
+        assert!(result.contains("- flour:"));
+    }
+
+    #[test]
+    fn test_excluding_pantry() {
+        // Use Pancakes.cook from test data
+        let recipe_path = get_test_data_path().join("recipes").join("Pancakes.cook");
+        let recipe = std::fs::read_to_string(recipe_path).unwrap();
+
+        let pantry_path = get_test_data_path().join("pantry.toml");
+
+        let template = indoc! {"
+            # Need to buy
+            {%- for ingredient in excluding_pantry(ingredients) %}
+            - {{ ingredient.name }}: {{ ingredient.quantity }}
+            {%- endfor %}
+        "};
+
+        // Test with pantry configuration
+        let config = Config::builder().pantry_path(&pantry_path).build();
+        let result = render_template_with_config(&recipe, template, &config).unwrap();
+
+        // flour and butter are in pantry, so they should be excluded
+        assert!(!result.contains("- flour:"));
+        assert!(!result.contains("- butter:"));
+        // eggs and milk are NOT in pantry, so they should be included
+        assert!(result.contains("- eggs:"));
+        assert!(result.contains("- milk:"));
+    }
+
+    #[test]
+    fn test_from_pantry() {
+        // Use Pancakes.cook from test data
+        let recipe_path = get_test_data_path().join("recipes").join("Pancakes.cook");
+        let recipe = std::fs::read_to_string(recipe_path).unwrap();
+
+        let pantry_path = get_test_data_path().join("pantry.toml");
+
+        let template = indoc! {"
+            # Already in pantry
+            {%- for ingredient in from_pantry(ingredients) %}
+            - {{ ingredient.name }}: {{ ingredient.quantity }}
+            {%- endfor %}
+        "};
+
+        // Test with pantry configuration
+        let config = Config::builder().pantry_path(&pantry_path).build();
+        let result = render_template_with_config(&recipe, template, &config).unwrap();
+
+        // flour is in pantry, so it should be included
+        assert!(result.contains("- flour:"));
+        // eggs and milk are NOT in pantry, so they should NOT be included
+        assert!(!result.contains("- eggs:"));
+        assert!(!result.contains("- milk:"));
+        // Note: Pancakes.cook doesn't have butter, so we can't test for it here
+    }
+
+    #[test]
+    fn test_pantry_without_config() {
+        // Use Pancakes.cook from test data
+        let recipe_path = get_test_data_path().join("recipes").join("Pancakes.cook");
+        let recipe = std::fs::read_to_string(recipe_path).unwrap();
+
+        let template = indoc! {"
+            # Need to buy
+            {%- for ingredient in excluding_pantry(ingredients) %}
+            - {{ ingredient.name }}: {{ ingredient.quantity }}
+            {%- endfor %}
+        "};
+
+        // Test without pantry configuration - should return all ingredients
+        let result = render_template(&recipe, template).unwrap();
+
+        assert!(result.contains("- eggs:"));
+        assert!(result.contains("- milk:"));
+        assert!(result.contains("- flour:"));
+    }
+
+    #[test]
+    fn test_smart_shopping_template() {
+        // Use Pancakes.cook from test data
+        let recipe_path = get_test_data_path().join("recipes").join("Pancakes.cook");
+        let recipe = std::fs::read_to_string(recipe_path).unwrap();
+
+        let aisle_path = get_test_data_path().join("aisles.yaml");
+        let pantry_path = get_test_data_path().join("pantry.toml");
+        let template_path = get_test_data_path()
+            .join("reports")
+            .join("smart_shopping.md.jinja");
+        let template = std::fs::read_to_string(template_path).unwrap();
+
+        let config = Config::builder()
+            .aisle_path(&aisle_path)
+            .pantry_path(&pantry_path)
+            .build();
+
+        let result = render_template_with_config(&recipe, &template, &config).unwrap();
+
+        println!("Smart Shopping List:\n{result}");
+
+        // Verify structure
+        assert!(result.contains("# Smart Shopping List"));
+        assert!(result.contains("## Items to Buy"));
+        assert!(result.contains("## Already Have in Pantry"));
+
+        // flour is in pantry, should be in "Already Have" section
+        assert!(result.contains("✓ Flour:"));
+
+        // eggs and milk are not in pantry, should be in "Items to Buy" section
+        assert!(result.contains("[ ] Eggs:"));
+        assert!(result.contains("[ ] Milk:"));
     }
 
     #[test]
