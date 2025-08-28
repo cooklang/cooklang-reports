@@ -19,7 +19,11 @@ use filters::{
     camelize_filter, dasherize_filter, format_price_filter, humanize_filter, numeric_filter,
     titleize_filter, underscore_filter, upcase_first_filter,
 };
-use functions::{aisled, excluding_pantry, from_pantry, get_from_datastore, get_ingredient_list};
+use functions::{
+    aisled, excluding_pantry, from_pantry, get_from_datastore, get_ingredient_list,
+    number_to_currency, number_to_human, number_to_human_size, number_to_percentage,
+    number_with_delimiter, number_with_precision,
+};
 use minijinja::Environment;
 use model::{Cookware, Ingredient, Metadata, Section};
 use parser::{get_converter, get_parser};
@@ -216,6 +220,23 @@ fn template_environment(template: &str) -> Result<Environment<'_>, Error> {
     env.add_function("aisled", aisled);
     env.add_function("excluding_pantry", excluding_pantry);
     env.add_function("from_pantry", from_pantry);
+
+    // Number formatting functions (also available as filters)
+    env.add_function("number_to_currency", number_to_currency);
+    env.add_function("number_to_human", number_to_human);
+    env.add_function("number_to_human_size", number_to_human_size);
+    env.add_function("number_to_percentage", number_to_percentage);
+    env.add_function("number_with_delimiter", number_with_delimiter);
+    env.add_function("number_with_precision", number_with_precision);
+
+    // Also register as filters
+    env.add_filter("number_to_currency", number_to_currency);
+    env.add_filter("number_to_human", number_to_human);
+    env.add_filter("number_to_human_size", number_to_human_size);
+    env.add_filter("number_to_percentage", number_to_percentage);
+    env.add_filter("number_with_delimiter", number_with_delimiter);
+    env.add_filter("number_with_precision", number_with_precision);
+
     env.add_filter("numeric", numeric_filter);
     env.add_filter("format_price", format_price_filter);
 
@@ -874,7 +895,7 @@ mod tests {
         let recipe_path = get_test_data_path().join("recipes").join("Pancakes.cook");
         let recipe = std::fs::read_to_string(recipe_path).unwrap();
 
-        let aisle_path = get_test_data_path().join("aisles.yaml");
+        let aisle_path = get_test_data_path().join("aisle.conf");
 
         let template = indoc! {"
             # Aisled Ingredients
@@ -906,7 +927,7 @@ mod tests {
             .join("Chinese Udon Noodles.cook");
         let recipe = std::fs::read_to_string(recipe_path).unwrap();
 
-        let aisle_path = get_test_data_path().join("aisles.yaml");
+        let aisle_path = get_test_data_path().join("aisle.conf");
         let template_path = get_test_data_path()
             .join("reports")
             .join("aisled_shopping.md.jinja");
@@ -956,7 +977,7 @@ mod tests {
         let recipe_path = get_test_data_path().join("recipes").join("Pancakes.cook");
         let recipe = std::fs::read_to_string(recipe_path).unwrap();
 
-        let pantry_path = get_test_data_path().join("pantry.toml");
+        let pantry_path = get_test_data_path().join("pantry.conf");
 
         let template = indoc! {"
             # Need to buy
@@ -983,7 +1004,7 @@ mod tests {
         let recipe_path = get_test_data_path().join("recipes").join("Pancakes.cook");
         let recipe = std::fs::read_to_string(recipe_path).unwrap();
 
-        let pantry_path = get_test_data_path().join("pantry.toml");
+        let pantry_path = get_test_data_path().join("pantry.conf");
 
         let template = indoc! {"
             # Already in pantry
@@ -1031,8 +1052,8 @@ mod tests {
         let recipe_path = get_test_data_path().join("recipes").join("Pancakes.cook");
         let recipe = std::fs::read_to_string(recipe_path).unwrap();
 
-        let aisle_path = get_test_data_path().join("aisles.yaml");
-        let pantry_path = get_test_data_path().join("pantry.toml");
+        let aisle_path = get_test_data_path().join("aisle.conf");
+        let pantry_path = get_test_data_path().join("pantry.conf");
         let template_path = get_test_data_path()
             .join("reports")
             .join("smart_shopping.md.jinja");
@@ -1058,6 +1079,136 @@ mod tests {
         // eggs and milk are not in pantry, should be in "Items to Buy" section
         assert!(result.contains("[ ] Eggs:"));
         assert!(result.contains("[ ] Milk:"));
+    }
+
+    #[test]
+    fn test_number_formatting_functions() {
+        let recipe = "@eggs{2}";
+
+        // Test number_to_currency
+        let template = "{{ number_to_currency(1234.567) }}";
+        let result = render_template(recipe, template).unwrap();
+        assert_eq!(result, "$1,234.57");
+
+        let template = "{{ number_to_currency(1234.567, precision=1) }}";
+        let result = render_template(recipe, template).unwrap();
+        assert_eq!(result, "$1,234.6");
+
+        let template = "{{ number_to_currency(1234.567, unit='£') }}";
+        let result = render_template(recipe, template).unwrap();
+        assert_eq!(result, "£1,234.57");
+
+        // Test number_to_human
+        let template = "{{ number_to_human(1234567) }}";
+        let result = render_template(recipe, template).unwrap();
+        assert_eq!(result, "1.235 Million");
+
+        let template = "{{ number_to_human(1234567890) }}";
+        let result = render_template(recipe, template).unwrap();
+        assert_eq!(result, "1.235 Billion");
+
+        // Test number_to_human_size
+        let template = "{{ number_to_human_size(1234567) }}";
+        let result = render_template(recipe, template).unwrap();
+        assert_eq!(result, "1.177 MB");
+
+        let template = "{{ number_to_human_size(1234567890) }}";
+        let result = render_template(recipe, template).unwrap();
+        assert_eq!(result, "1.150 GB");
+
+        // Test number_to_percentage
+        let template = "{{ number_to_percentage(100) }}";
+        let result = render_template(recipe, template).unwrap();
+        assert_eq!(result, "100.000%");
+
+        let template = "{{ number_to_percentage(100, precision=0) }}";
+        let result = render_template(recipe, template).unwrap();
+        assert_eq!(result, "100%");
+
+        // Test number_with_delimiter
+        let template = "{{ number_with_delimiter(12345678) }}";
+        let result = render_template(recipe, template).unwrap();
+        assert_eq!(result, "12,345,678");
+
+        let template = "{{ number_with_delimiter(12345678, delimiter='_') }}";
+        let result = render_template(recipe, template).unwrap();
+        assert_eq!(result, "12_345_678");
+
+        // Test number_with_precision
+        let template = "{{ number_with_precision(111.2345) }}";
+        let result = render_template(recipe, template).unwrap();
+        assert_eq!(result, "111.234");
+
+        let template = "{{ number_with_precision(111.2345, precision=2) }}";
+        let result = render_template(recipe, template).unwrap();
+        assert_eq!(result, "111.23");
+
+        let template =
+            "{{ number_with_precision(13, precision=5, strip_insignificant_zeros=true) }}";
+        let result = render_template(recipe, template).unwrap();
+        assert_eq!(result, "13");
+    }
+
+    #[test]
+    fn test_number_formatting_with_strings() {
+        let recipe = "@eggs{2}";
+
+        // Test that functions work with string inputs
+        let template = "{{ number_to_currency('1234.567') }}";
+        let result = render_template(recipe, template).unwrap();
+        assert_eq!(result, "$1,234.57");
+
+        let template = "{{ number_to_human('1234567') }}";
+        let result = render_template(recipe, template).unwrap();
+        assert_eq!(result, "1.235 Million");
+
+        let template = "{{ number_with_delimiter('12345678.05') }}";
+        let result = render_template(recipe, template).unwrap();
+        assert_eq!(result, "12,345,678.05");
+    }
+
+    #[test]
+    fn test_number_formatting_as_filters() {
+        let recipe = "@eggs{2}";
+
+        // Test number_to_currency filter
+        let template = "{{ 1234.567 | number_to_currency }}";
+        let result = render_template(recipe, template).unwrap();
+        assert_eq!(result, "$1,234.57");
+
+        let template = "{{ 1234.567 | number_to_currency(precision=1) }}";
+        let result = render_template(recipe, template).unwrap();
+        assert_eq!(result, "$1,234.6");
+
+        // Test number_to_human filter
+        let template = "{{ 1234567 | number_to_human }}";
+        let result = render_template(recipe, template).unwrap();
+        assert_eq!(result, "1.235 Million");
+
+        // Test number_to_human_size filter
+        let template = "{{ 1234567 | number_to_human_size }}";
+        let result = render_template(recipe, template).unwrap();
+        assert_eq!(result, "1.177 MB");
+
+        // Test number_to_percentage filter
+        let template = "{{ 100 | number_to_percentage(precision=0) }}";
+        let result = render_template(recipe, template).unwrap();
+        assert_eq!(result, "100%");
+
+        // Test number_with_delimiter filter
+        let template = "{{ 12345678 | number_with_delimiter }}";
+        let result = render_template(recipe, template).unwrap();
+        assert_eq!(result, "12,345,678");
+
+        // Test number_with_precision filter
+        let template = "{{ 111.2345 | number_with_precision(precision=2) }}";
+        let result = render_template(recipe, template).unwrap();
+        assert_eq!(result, "111.23");
+
+        // Test chaining with numeric filter
+        let template = "{{ '123.45kg' | numeric | number_to_currency }}";
+        let result = render_template(recipe, template).unwrap();
+        assert_eq!(result, "$123.45");
     }
 
     #[test]

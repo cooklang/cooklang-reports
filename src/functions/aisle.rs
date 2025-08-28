@@ -1,5 +1,6 @@
 use crate::parser::get_converter;
-use minijinja::{Error, State, Value};
+use cooklang::quantity::GroupedQuantity;
+use minijinja::{State, Value};
 use std::collections::BTreeMap;
 
 /// Group ingredients by aisle category using an aisle configuration file.
@@ -25,8 +26,7 @@ use std::collections::BTreeMap;
 /// {% endfor %}
 /// {% endfor %}
 /// ```
-#[allow(clippy::needless_pass_by_value)]
-pub fn aisled(state: &State, ingredients: Value) -> Result<Value, Error> {
+pub fn aisled(state: &State, ingredients: Value) -> Value {
     // Try to get aisle content from state
     let aisle_content = state
         .lookup("aisle_content")
@@ -54,7 +54,11 @@ pub fn aisled(state: &State, ingredients: Value) -> Result<Value, Error> {
 
                     // For categorization, we don't need quantities
                     // Just add the ingredient with empty quantity
-                    ingredient_list.add_ingredient(name, &Default::default(), get_converter());
+                    ingredient_list.add_ingredient(
+                        name,
+                        &GroupedQuantity::default(),
+                        get_converter(),
+                    );
                 }
             }
 
@@ -121,5 +125,5 @@ pub fn aisled(state: &State, ingredients: Value) -> Result<Value, Error> {
         result.insert("other".to_string(), ingredients);
     }
 
-    Ok(Value::from_iter(result))
+    Value::from_iter(result)
 }

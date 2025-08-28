@@ -1,4 +1,4 @@
-use minijinja::{Error, State, Value};
+use minijinja::{State, Value};
 
 /// Filter ingredients to exclude items that are already in the pantry.
 ///
@@ -19,8 +19,7 @@ use minijinja::{Error, State, Value};
 /// - {{ ingredient.name }}: {{ ingredient.quantity }}
 /// {% endfor %}
 /// ```
-#[allow(clippy::needless_pass_by_value)]
-pub fn excluding_pantry(state: &State, ingredients: Value) -> Result<Value, Error> {
+pub fn excluding_pantry(state: &State, ingredients: Value) -> Value {
     // Try to get pantry content from state
     let pantry_content = state
         .lookup("pantry_content")
@@ -50,15 +49,15 @@ pub fn excluding_pantry(state: &State, ingredients: Value) -> Result<Value, Erro
                 }
             }
 
-            Ok(Value::from(filtered))
+            Value::from(filtered)
         } else {
             // Failed to parse pantry configuration
             eprintln!("Warning: Failed to parse pantry configuration. Returning all ingredients.");
-            Ok(ingredients)
+            ingredients
         }
     } else {
         // No pantry configuration provided - return all ingredients
-        Ok(ingredients)
+        ingredients
     }
 }
 
@@ -82,7 +81,7 @@ pub fn excluding_pantry(state: &State, ingredients: Value) -> Result<Value, Erro
 /// {% endfor %}
 /// ```
 #[allow(clippy::needless_pass_by_value)]
-pub fn from_pantry(state: &State, ingredients: Value) -> Result<Value, Error> {
+pub fn from_pantry(state: &State, ingredients: Value) -> Value {
     // Try to get pantry content from state
     let pantry_content = state
         .lookup("pantry_content")
@@ -112,14 +111,14 @@ pub fn from_pantry(state: &State, ingredients: Value) -> Result<Value, Error> {
                 }
             }
 
-            Ok(Value::from(filtered))
+            Value::from(filtered)
         } else {
             // Failed to parse pantry configuration
             eprintln!("Warning: Failed to parse pantry configuration. Returning empty list.");
-            Ok(Value::from(Vec::<Value>::new()))
+            Value::from(Vec::<Value>::new())
         }
     } else {
         // No pantry configuration provided - return empty list
-        Ok(Value::from(Vec::<Value>::new()))
+        Value::from(Vec::<Value>::new())
     }
 }
