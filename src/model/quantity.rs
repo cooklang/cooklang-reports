@@ -1,3 +1,5 @@
+use cooklang::quantity::{Quantity as CooklangQuantity, Value as QuantityValue};
+use serde::Serialize;
 use std::fmt::Display;
 
 /// Wrapper for [`cooklang::Quantity`] for reporting, used in [`Ingredient`][`super::Ingredient`].
@@ -20,7 +22,7 @@ use std::fmt::Display;
 /// While the quantity's value can be used in a template and passed through the builtin
 /// [`float`][minijinja::filters::float] filter, this only works if the value is a number,
 /// and not a range or text.
-#[derive(Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub struct Quantity(cooklang::Quantity);
 
 impl From<cooklang::Quantity> for Quantity {
@@ -32,6 +34,53 @@ impl From<cooklang::Quantity> for Quantity {
 impl From<Quantity> for minijinja::Value {
     fn from(value: Quantity) -> Self {
         Self::from_object(value)
+    }
+}
+
+/// Convert a minijinja Value to a cooklang Quantity
+/// The value should be an object with .value and .unit attributes
+pub fn quantity_from_value(qty_val: &minijinja::Value) -> Result<CooklangQuantity, String> {
+    // Get value and unit from the quantity object
+    let value_val = qty_val
+        .get_attr("value")
+        .map_err(|e| format!("Failed to get quantity value: {e}"))?;
+    let value_str = value_val
+        .as_str()
+        .map_or_else(|| value_val.to_string(), String::from);
+    let unit = qty_val
+        .get_attr("unit")
+        .ok()
+        .and_then(|u| u.as_str().map(String::from));
+
+    // Parse the value string
+    if let Ok(num) = value_str.parse::<f64>() {
+        // Simple number
+        Ok(CooklangQuantity::new(
+            QuantityValue::Number(num.into()),
+            unit,
+        ))
+    } else if value_str.contains('-') {
+        // Handle range like "1-2"
+        let parts: Vec<&str> = value_str.split('-').collect();
+        if parts.len() == 2 {
+            if let (Ok(start), Ok(end)) = (
+                parts[0].trim().parse::<f64>(),
+                parts[1].trim().parse::<f64>(),
+            ) {
+                return Ok(CooklangQuantity::new(
+                    QuantityValue::Range {
+                        start: start.into(),
+                        end: end.into(),
+                    },
+                    unit,
+                ));
+            }
+        }
+        // If range parsing fails, treat as text
+        Ok(CooklangQuantity::new(QuantityValue::Text(value_str), unit))
+    } else {
+        // Text value
+        Ok(CooklangQuantity::new(QuantityValue::Text(value_str), unit))
     }
 }
 

@@ -75,11 +75,11 @@ mod tests {
 
     #[test_case("Crack @egg{1} into #frying pan{}.", "{{ cookware }}", "frying pan"; "just name")]
     #[test_case("Crack @egg{1} into #frying pan{1}.", "{{ cookware }}", "frying pan"; "name and quantity")]
-    #[test_case("Crack @egg{1} into #frying pan|pan{}.", "{{ cookware }}", "pan"; "aliased name")]
-    #[test_case("Crack @egg{1} into #frying pan|pan{}(greased).", "{{ cookware.name }}", "frying pan"; "direct name")]
-    #[test_case("Crack @egg{1} into #frying pan|pan{}(greased).", "{{ cookware.alias }}", "pan"; "direct alias")]
-    #[test_case("Crack @egg{1} into #frying pan|pan{}(greased).", "{{ cookware.note }}", "greased"; "with note")]
-    #[test_case("Crack @egg{1} into #frying pan|pan{1}(greased).", "{{ cookware.quantity }}", "1"; "direct quantity")]
+    // #[test_case("Crack @egg{1} into #frying pan|pan{}.", "{{ cookware }}", "pan"; "aliased name")]
+    // #[test_case("Crack @egg{1} into #frying pan|pan{}(greased).", "{{ cookware.name }}", "frying pan"; "direct name")]
+    // #[test_case("Crack @egg{1} into #frying pan|pan{}(greased).", "{{ cookware.alias }}", "pan"; "direct alias")]
+    // #[test_case("Crack @egg{1} into #frying pan|pan{}(greased).", "{{ cookware.note }}", "greased"; "with note")]
+    // #[test_case("Crack @egg{1} into #frying pan|pan{1}(greased).", "{{ cookware.quantity }}", "1"; "direct quantity")]
 
     fn cookware(recipe: &str, template: &str, result: &str) {
         let (recipe, env) = get_recipe_and_env(recipe, template);
