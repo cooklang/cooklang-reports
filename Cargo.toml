@@ -1,6 +1,6 @@
 [package]
 name = "cooklang-reports"
-version = "0.1.1"
+version = "0.2.0"
 edition = "2024"
 description = "A Rust library for generating reports from Cooklang recipes using Jinja2-style templates"
 license = "MIT"
