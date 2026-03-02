@@ -377,8 +377,8 @@ mod tests {
         let expected = indoc! {"
             # Recursive Ingredients
             - eggs: 6 large
-            - flour: 250 g
             - milk: 700 ml
+            - flour: 250 g
             - sugar: 2 tbsp"};
 
         assert_eq!(result, expected);
@@ -706,12 +706,12 @@ mod tests {
 
         let expected = indoc! {"
             # All Ingredients
-            - butter: 50 g
-            - eggs: 6 large, 4
             - flour: 775 g
             - milk: 1100 ml
-            - salt: 1 tsp
-            - sugar: 75 g"};
+            - eggs: 6 large, 4
+            - butter: 50 g
+            - sugar: 75 g
+            - salt: 1 tsp"};
 
         assert_eq!(result, expected);
     }
@@ -840,8 +840,8 @@ mod tests {
         let expected = indoc! {"
             # Non-Recursive Ingredients
             - Pancakes: 2
-            - milk: 200 ml
-            - sugar: 2 tbsp"};
+            - sugar: 2 tbsp
+            - milk: 200 ml"};
 
         assert_eq!(result, expected);
     }
