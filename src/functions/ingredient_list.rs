@@ -129,8 +129,8 @@ fn process_regular_ingredient(
     let mut grouped = GroupedQuantity::empty();
 
     // Parse and add quantity if present
-    if let Ok(qty_val) = item.get_attr("quantity") {
-        if let Ok(qty) = quantity_from_value(&qty_val) {
+    if let Ok(qty_val) = item.get_attr("quantity")
+        && let Ok(qty) = quantity_from_value(&qty_val) {
             // Apply parent scaling if needed
             let final_qty = if (parent_scaling - 1.0).abs() > f64::EPSILON {
                 match qty.value() {
@@ -145,7 +145,6 @@ fn process_regular_ingredient(
             };
             grouped.add(&final_qty, get_converter());
         }
-    }
 
     // Add the ingredient to the list using the parser's methods
     list.add_ingredient(display_name, &grouped, get_converter());
@@ -217,8 +216,8 @@ fn process_recipe_reference(
         .clone();
 
     // Apply scaling based on quantity if present
-    if let Ok(qty_val) = item.get_attr("quantity") {
-        if let Ok(qty) = quantity_from_value(&qty_val) {
+    if let Ok(qty_val) = item.get_attr("quantity")
+        && let Ok(qty) = quantity_from_value(&qty_val) {
             if let Some(unit) = qty.unit() {
                 // Extract numeric value from quantity
                 let target_value = match qty.value() {
@@ -238,7 +237,6 @@ fn process_recipe_reference(
                 recipe.scale(n.value(), get_converter());
             }
         }
-    }
 
     // Apply parent scaling if needed
     if (parent_scaling - 1.0).abs() > f64::EPSILON {

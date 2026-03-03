@@ -258,7 +258,7 @@ fn format_number(number: f64, precision: usize, delimiter: &str, separator: &str
     for (i, ch) in chars.iter().enumerate() {
         integer_with_delimiters.push(*ch);
         let remaining = len - i - 1;
-        if remaining > 0 && remaining % 3 == 0 && !delimiter.is_empty() {
+        if remaining > 0 && remaining.is_multiple_of(3) && !delimiter.is_empty() {
             integer_with_delimiters.push_str(delimiter);
         }
     }

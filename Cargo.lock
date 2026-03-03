@@ -69,9 +69,9 @@ dependencies = [
 
 [[package]]
 name = "cooklang-find"
-version = "0.4.0"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f57f5f097aacc2d7c2ccc25656767e260409013fe559d30587b3b0fe8b54f063"
+checksum = "8e16de0152fb82cd5a645c3bf3139e9e5dc7f6bcbed1a99ec10bd467d6a69adc"
 dependencies = [
  "camino",
  "glob",
@@ -82,7 +82,7 @@ dependencies = [
 
 [[package]]
 name = "cooklang-reports"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "anyhow",
  "cooklang",

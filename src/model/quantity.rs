@@ -62,8 +62,8 @@ pub fn quantity_from_value(qty_val: &minijinja::Value) -> Result<CooklangQuantit
     } else if value_str.contains('-') {
         // Handle range like "1-2"
         let parts: Vec<&str> = value_str.split('-').collect();
-        if parts.len() == 2 {
-            if let (Ok(start), Ok(end)) = (
+        if parts.len() == 2
+            && let (Ok(start), Ok(end)) = (
                 parts[0].trim().parse::<f64>(),
                 parts[1].trim().parse::<f64>(),
             ) {
@@ -75,7 +75,6 @@ pub fn quantity_from_value(qty_val: &minijinja::Value) -> Result<CooklangQuantit
                     unit,
                 ));
             }
-        }
         // If range parsing fails, treat as text
         Ok(CooklangQuantity::new(QuantityValue::Text(value_str), unit))
     } else {

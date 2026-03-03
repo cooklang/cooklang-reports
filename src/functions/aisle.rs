@@ -74,12 +74,11 @@ pub fn aisled(state: &State, ingredients: Value) -> Value {
                 for (ingredient_name, _) in list {
                     if let Ok(iter) = ingredients.try_iter() {
                         for item in iter {
-                            if let Ok(name) = item.get_attr("name") {
-                                if name.as_str() == Some(&ingredient_name) {
+                            if let Ok(name) = item.get_attr("name")
+                                && name.as_str() == Some(&ingredient_name) {
                                     category_items.push(item);
                                     break;
                                 }
-                            }
                         }
                     }
                 }
@@ -96,12 +95,11 @@ pub fn aisled(state: &State, ingredients: Value) -> Value {
                 for (ingredient_name, _) in categorized.other {
                     if let Ok(iter) = ingredients.try_iter() {
                         for item in iter {
-                            if let Ok(name) = item.get_attr("name") {
-                                if name.as_str() == Some(&ingredient_name) {
+                            if let Ok(name) = item.get_attr("name")
+                                && name.as_str() == Some(&ingredient_name) {
                                     other_items.push(item);
                                     break;
                                 }
-                            }
                         }
                     }
                 }
