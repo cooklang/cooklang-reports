@@ -13,7 +13,6 @@
 //! [00]: https://cooklang.org/
 //! [01]: https://jinja.palletsprojects.com/en/stable/
 #[doc = include_str!("../README.md")]
-use config::Config;
 use cooklang::Recipe;
 use filters::{
     camelize_filter, dasherize_filter, format_price_filter, humanize_filter, numeric_filter,
@@ -32,12 +31,15 @@ use yaml_datastore::Datastore;
 
 pub mod config;
 pub mod error;
+pub mod extension;
 mod filters;
 mod functions;
 mod model;
 pub mod parser;
 
+pub use config::Config;
 pub use error::Error;
+pub use extension::ConfigExtension;
 
 /// Context passed to the template
 #[derive(Debug, Serialize)]
@@ -201,14 +203,14 @@ pub fn render_template_with_config(
         aisle_content,
         pantry_content,
     );
-    let template_environment = template_environment(template)?;
+    let template_environment = template_environment(template, config)?;
 
     let template: minijinja::Template<'_, '_> = template_environment.get_template("base")?;
     Ok(template.render(template_context)?)
 }
 
-/// Build an environment for the given template.
-fn template_environment(template: &str) -> Result<Environment<'_>, Error> {
+/// Build an environment for the given template, registering built-in and extension functions.
+fn template_environment<'a>(template: &'a str, config: &'a Config) -> Result<Environment<'a>, Error> {
     let mut env = Environment::new();
 
     // Enable debug mode for better error messages
@@ -255,6 +257,11 @@ fn template_environment(template: &str) -> Result<Environment<'_>, Error> {
     env.add_function("humanize", humanize_filter);
     env.add_function("titleize", titleize_filter);
     env.add_function("upcase_first", upcase_first_filter);
+
+    // Register any consumer-provided extensions
+    for ext in &config.extensions {
+        ext.register(&mut env);
+    }
 
     Ok(env)
 }

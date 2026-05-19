@@ -1,4 +1,5 @@
 //! Configuration struct for report generation.
+use crate::extension::ConfigExtension;
 use std::path::PathBuf;
 
 /// Struct for template configuration.
@@ -22,6 +23,7 @@ pub struct Config {
     pub(crate) base_path: Option<PathBuf>,
     pub(crate) aisle_path: Option<PathBuf>,
     pub(crate) pantry_path: Option<PathBuf>,
+    pub(crate) extensions: Vec<Box<dyn ConfigExtension>>,
 }
 
 impl Default for Config {
@@ -33,6 +35,7 @@ impl Default for Config {
             base_path: std::env::current_dir().ok(),
             aisle_path: None,
             pantry_path: None,
+            extensions: Vec::new(),
         }
     }
 }
@@ -42,6 +45,17 @@ impl Config {
     #[must_use]
     pub fn builder() -> ConfigBuilder {
         ConfigBuilder::default()
+    }
+
+    /// Attach a [`ConfigExtension`] to this `Config`.
+    ///
+    /// Extensions are called during template environment construction to register
+    /// additional minijinja functions or filters. This method consumes and returns
+    /// `self` so it can be chained after [`ConfigBuilder::build`].
+    #[must_use]
+    pub fn with_extension<E: ConfigExtension + 'static>(mut self, ext: E) -> Self {
+        self.extensions.push(Box::new(ext));
+        self
     }
 }
 
@@ -106,6 +120,7 @@ impl ConfigBuilder {
             base_path: self.base_path.clone(),
             aisle_path: self.aisle_path.clone(),
             pantry_path: self.pantry_path.clone(),
+            extensions: Vec::new(),
         }
     }
 }
