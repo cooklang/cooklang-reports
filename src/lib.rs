@@ -40,6 +40,10 @@ pub mod parser;
 pub use config::Config;
 pub use error::Error;
 pub use extension::ConfigExtension;
+/// Re-export of [`minijinja`] so consumers implementing [`ConfigExtension`]
+/// can reference [`minijinja::Environment`] without pinning a separate
+/// (potentially incompatible) version of the crate.
+pub use minijinja;
 
 /// Context passed to the template
 #[derive(Debug, Serialize)]

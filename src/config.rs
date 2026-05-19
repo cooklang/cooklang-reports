@@ -47,11 +47,16 @@ impl Config {
         ConfigBuilder::default()
     }
 
-    /// Attach a [`ConfigExtension`] to this `Config`.
+    /// Register a [`ConfigExtension`] on this `Config`. Extensions are invoked
+    /// in registration order during template environment construction, **after**
+    /// all built-in functions and filters. A later-registered function shadows
+    /// any earlier function (built-in or extension) with the same name.
     ///
-    /// Extensions are called during template environment construction to register
-    /// additional minijinja functions or filters. This method consumes and returns
-    /// `self` so it can be chained after [`ConfigBuilder::build`].
+    /// # Example
+    ///
+    /// ```ignore
+    /// let config = Config::builder().build().with_extension(MyExt::new());
+    /// ```
     #[must_use]
     pub fn with_extension<E: ConfigExtension + 'static>(mut self, ext: E) -> Self {
         self.extensions.push(Box::new(ext));
