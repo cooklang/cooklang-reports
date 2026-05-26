@@ -13,7 +13,11 @@ pub enum Error {
     #[error("template error")]
     TemplateError(#[from] minijinja::Error),
 
-    /// An error occurred when serializing the render context.
+    /// Reserved for future render-context construction failures.
+    ///
+    /// Currently unused — the active render path uses `minijinja::Value::from_serialize`,
+    /// which is infallible. Kept so that future serialization-failure handling can land
+    /// without a breaking API change.
     #[error("render error: {0}")]
     Render(String),
 }

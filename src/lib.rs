@@ -1237,9 +1237,21 @@ mod tests {
         let template = "hello {{ greeting }}";
         let config = Config::builder()
             .build()
-            .with_context("greeting", serde_json::Value::String("world".to_string()));
+            .with_context("greeting", "world");
         let result = render_template_with_config(recipe, template, &config).unwrap();
         assert_eq!(result, "hello world");
+    }
+
+    #[test]
+    fn test_with_context_extra_wins_on_conflict() {
+        // Injecting a key that already exists in TemplateContext should override it.
+        let recipe = "@eggs{2}";
+        let template = "{{ scale }}";
+        let config = Config::builder()
+            .build()
+            .with_context("scale", serde_json::json!(99.0));
+        let result = render_template_with_config(recipe, template, &config).unwrap();
+        assert_eq!(result, "99.0");
     }
 
     #[test]
