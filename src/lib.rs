@@ -1235,9 +1235,7 @@ mod tests {
     fn test_with_context_exposes_extra_variable() {
         let recipe = "@eggs{2}";
         let template = "hello {{ greeting }}";
-        let config = Config::builder()
-            .build()
-            .with_context("greeting", "world");
+        let config = Config::builder().build().with_context("greeting", "world");
         let result = render_template_with_config(recipe, template, &config).unwrap();
         assert_eq!(result, "hello world");
     }
