@@ -1,5 +1,7 @@
 //! Configuration struct for report generation.
 use crate::extension::ConfigExtension;
+use serde_json::Value;
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 /// Struct for template configuration.
@@ -24,6 +26,7 @@ pub struct Config {
     pub(crate) aisle_path: Option<PathBuf>,
     pub(crate) pantry_path: Option<PathBuf>,
     pub(crate) extensions: Vec<Box<dyn ConfigExtension>>,
+    pub(crate) extra_context: BTreeMap<String, Value>,
 }
 
 impl Default for Config {
@@ -36,6 +39,7 @@ impl Default for Config {
             aisle_path: None,
             pantry_path: None,
             extensions: Vec::new(),
+            extra_context: BTreeMap::new(),
         }
     }
 }
@@ -60,6 +64,15 @@ impl Config {
     #[must_use]
     pub fn with_extension<E: ConfigExtension + 'static>(mut self, ext: E) -> Self {
         self.extensions.push(Box::new(ext));
+        self
+    }
+
+    /// Inject an extra key/value into the template render context. Keys appear
+    /// as top-level template variables. A later call with the same key
+    /// overwrites the earlier value.
+    #[must_use]
+    pub fn with_context<K: Into<String>, V: Into<Value>>(mut self, key: K, value: V) -> Self {
+        self.extra_context.insert(key.into(), value.into());
         self
     }
 }
@@ -126,6 +139,7 @@ impl ConfigBuilder {
             aisle_path: self.aisle_path.clone(),
             pantry_path: self.pantry_path.clone(),
             extensions: Vec::new(),
+            extra_context: BTreeMap::new(),
         }
     }
 }

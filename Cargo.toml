@@ -13,6 +13,7 @@ cooklang = { version = "0.18.0", default-features = false, features = ["aisle", 
 cooklang-find = { version = "0.5.0" }
 minijinja = { version = "2.12", features = ["preserve_order", "debug"] }
 serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 yaml-datastore = "0.1.0"
 serde_yaml = "0.9"
 thiserror = "2.0.12"
