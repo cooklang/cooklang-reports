@@ -12,6 +12,10 @@ pub enum Error {
     /// An error occurred when generating a report from a template.
     #[error("template error")]
     TemplateError(#[from] minijinja::Error),
+
+    /// An error occurred when serializing the render context.
+    #[error("render error: {0}")]
+    Render(String),
 }
 
 impl Error {
