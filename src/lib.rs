@@ -208,9 +208,18 @@ pub fn render_template_with_config(
         pantry_content,
     );
     let template_environment = template_environment(template, config)?;
-
     let template: minijinja::Template<'_, '_> = template_environment.get_template("base")?;
-    Ok(template.render(template_context)?)
+
+    // Build the render context: start with the standard TemplateContext, then
+    // overlay any extras from Config::with_context. Extras win on conflict.
+    if config.extra_context.is_empty() {
+        Ok(template.render(template_context)?)
+    } else {
+        let base = minijinja::Value::from_serialize(&template_context);
+        let extras = minijinja::Value::from_serialize(&config.extra_context);
+        let merged = minijinja::value::merge_maps([base, extras]);
+        Ok(template.render(merged)?)
+    }
 }
 
 /// Build an environment for the given template, registering built-in and extension functions.
@@ -1220,6 +1229,27 @@ mod tests {
         let template = "{{ '123.45kg' | numeric | number_to_currency }}";
         let result = render_template(recipe, template).unwrap();
         assert_eq!(result, "$123.45");
+    }
+
+    #[test]
+    fn test_with_context_exposes_extra_variable() {
+        let recipe = "@eggs{2}";
+        let template = "hello {{ greeting }}";
+        let config = Config::builder().build().with_context("greeting", "world");
+        let result = render_template_with_config(recipe, template, &config).unwrap();
+        assert_eq!(result, "hello world");
+    }
+
+    #[test]
+    fn test_with_context_extra_wins_on_conflict() {
+        // Injecting a key that already exists in TemplateContext should override it.
+        let recipe = "@eggs{2}";
+        let template = "{{ scale }}";
+        let config = Config::builder()
+            .build()
+            .with_context("scale", serde_json::json!(99.0));
+        let result = render_template_with_config(recipe, template, &config).unwrap();
+        assert_eq!(result, "99.0");
     }
 
     #[test]
