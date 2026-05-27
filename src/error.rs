@@ -12,14 +12,6 @@ pub enum Error {
     /// An error occurred when generating a report from a template.
     #[error("template error")]
     TemplateError(#[from] minijinja::Error),
-
-    /// Reserved for future render-context construction failures.
-    ///
-    /// Currently unused — the active render path uses `minijinja::Value::from_serialize`,
-    /// which is infallible. Kept so that future serialization-failure handling can land
-    /// without a breaking API change.
-    #[error("render error: {0}")]
-    Render(String),
 }
 
 impl Error {
