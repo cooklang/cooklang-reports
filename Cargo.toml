@@ -10,7 +10,7 @@ readme = "README.md"
 
 [dependencies]
 cooklang = { version = "0.18.0", default-features = false, features = ["aisle", "pantry"] }
-cooklang-find = { version = "0.5.0" }
+cooklang-find = { version = "0.6.0" }
 minijinja = { version = "2.12", features = ["preserve_order", "debug"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
