@@ -12,12 +12,13 @@ pub fn numeric_filter(value: &str) -> Result<f64, Error> {
         // Handle fractions (e.g., "1/4")
         let parts: Vec<&str> = numeric_part.split('/').collect();
         if parts.len() == 2
-            && let (Ok(num), Ok(denom)) = (parts[0].parse::<f64>(), parts[1].parse::<f64>()) {
-                let fraction = num / denom;
-                if fraction.is_finite() {
-                    return Ok(fraction);
-                }
+            && let (Ok(num), Ok(denom)) = (parts[0].parse::<f64>(), parts[1].parse::<f64>())
+        {
+            let fraction = num / denom;
+            if fraction.is_finite() {
+                return Ok(fraction);
             }
+        }
     } else if let Ok(num) = numeric_part.parse::<f64>() {
         return Ok(num);
     }

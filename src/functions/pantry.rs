@@ -37,14 +37,15 @@ pub fn excluding_pantry(state: &State, ingredients: Value) -> Value {
                 for item in iter {
                     // Get ingredient name
                     if let Ok(name) = item.get_attr("name")
-                        && let Some(name_str) = name.as_str() {
-                            // Check if this ingredient is NOT in the pantry
-                            let in_pantry = pantry_conf.has_ingredient(name_str);
+                        && let Some(name_str) = name.as_str()
+                    {
+                        // Check if this ingredient is NOT in the pantry
+                        let in_pantry = pantry_conf.has_ingredient(name_str);
 
-                            if !in_pantry {
-                                filtered.push(item);
-                            }
+                        if !in_pantry {
+                            filtered.push(item);
                         }
+                    }
                 }
             }
 
@@ -98,14 +99,15 @@ pub fn from_pantry(state: &State, ingredients: Value) -> Value {
                 for item in iter {
                     // Get ingredient name
                     if let Ok(name) = item.get_attr("name")
-                        && let Some(name_str) = name.as_str() {
-                            // Check if this ingredient IS in the pantry
-                            let in_pantry = pantry_conf.has_ingredient(name_str);
+                        && let Some(name_str) = name.as_str()
+                    {
+                        // Check if this ingredient IS in the pantry
+                        let in_pantry = pantry_conf.has_ingredient(name_str);
 
-                            if in_pantry {
-                                filtered.push(item);
-                            }
+                        if in_pantry {
+                            filtered.push(item);
                         }
+                    }
                 }
             }
 

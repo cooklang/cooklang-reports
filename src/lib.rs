@@ -223,7 +223,10 @@ pub fn render_template_with_config(
 }
 
 /// Build an environment for the given template, registering built-in and extension functions.
-fn template_environment<'a>(template: &'a str, config: &'a Config) -> Result<Environment<'a>, Error> {
+fn template_environment<'a>(
+    template: &'a str,
+    config: &'a Config,
+) -> Result<Environment<'a>, Error> {
     let mut env = Environment::new();
 
     // Enable debug mode for better error messages

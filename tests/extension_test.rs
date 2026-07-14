@@ -1,4 +1,4 @@
-use cooklang_reports::{render_template_with_config, Config, ConfigExtension};
+use cooklang_reports::{Config, ConfigExtension, render_template_with_config};
 use minijinja::Environment;
 use std::sync::{Arc, Mutex};
 
@@ -20,9 +20,9 @@ impl ConfigExtension for CountingExtension {
 #[test]
 fn extension_function_is_registered() {
     let counter = Arc::new(Mutex::new(0u32));
-    let config = Config::builder()
-        .build()
-        .with_extension(CountingExtension { counter: counter.clone() });
+    let config = Config::builder().build().with_extension(CountingExtension {
+        counter: counter.clone(),
+    });
 
     let recipe = "@flour{1}";
     let template = "{{ bump() }}-{{ bump() }}";

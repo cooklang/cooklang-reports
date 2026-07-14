@@ -66,15 +66,16 @@ pub fn quantity_from_value(qty_val: &minijinja::Value) -> Result<CooklangQuantit
             && let (Ok(start), Ok(end)) = (
                 parts[0].trim().parse::<f64>(),
                 parts[1].trim().parse::<f64>(),
-            ) {
-                return Ok(CooklangQuantity::new(
-                    QuantityValue::Range {
-                        start: start.into(),
-                        end: end.into(),
-                    },
-                    unit,
-                ));
-            }
+            )
+        {
+            return Ok(CooklangQuantity::new(
+                QuantityValue::Range {
+                    start: start.into(),
+                    end: end.into(),
+                },
+                unit,
+            ));
+        }
         // If range parsing fails, treat as text
         Ok(CooklangQuantity::new(QuantityValue::Text(value_str), unit))
     } else {
