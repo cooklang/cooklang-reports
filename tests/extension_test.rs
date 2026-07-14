@@ -1,3 +1,8 @@
+// Integration test: the crate's `missing_docs` and `unwrap_used` lints are meant
+// for the library surface, not for test scaffolding.
+#![allow(missing_docs)]
+#![allow(clippy::unwrap_used)]
+
 use cooklang_reports::{Config, ConfigExtension, render_template_with_config};
 use minijinja::Environment;
 use std::sync::{Arc, Mutex};
