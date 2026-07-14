@@ -78,14 +78,13 @@ fn process_ingredients(
 ) -> Result<()> {
     let iter = ingredients
         .try_iter()
-        .map_err(|e| anyhow!("ingredients must be an array: {}", e))?;
+        .map_err(|e| anyhow!("ingredients must be an array: {e}"))?;
 
     for item in iter {
         // Check if this is a recipe reference
         let is_reference = item
             .get_attr("reference")
-            .map(|v| v.is_true())
-            .unwrap_or(false);
+            .is_ok_and(|v| v.is_true());
 
         if is_reference && expand_references {
             // Handle recipe reference only if expansion is enabled
@@ -114,7 +113,7 @@ fn process_regular_ingredient(
 ) -> Result<()> {
     let name = item
         .get_attr("name")
-        .map_err(|e| anyhow!("Failed to get ingredient name: {}", e))?
+        .map_err(|e| anyhow!("Failed to get ingredient name: {e}"))?
         .as_str()
         .ok_or_else(|| anyhow!("Ingredient name must be a string"))?
         .to_string();
@@ -162,7 +161,7 @@ fn process_recipe_reference(
 ) -> Result<()> {
     let name = item
         .get_attr("name")
-        .map_err(|e| anyhow!("Failed to get ingredient name: {}", e))?
+        .map_err(|e| anyhow!("Failed to get ingredient name: {e}"))?
         .as_str()
         .ok_or_else(|| anyhow!("Ingredient name must be a string"))?
         .to_string();
@@ -212,7 +211,7 @@ fn process_recipe_reference(
 
     let mut recipe = parse_result
         .output()
-        .ok_or_else(|| anyhow!("Failed to get recipe output for '{}'", reference_path))?
+        .ok_or_else(|| anyhow!("Failed to get recipe output for '{reference_path}'"))?
         .clone();
 
     // Apply scaling based on quantity if present
