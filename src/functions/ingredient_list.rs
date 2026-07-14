@@ -78,14 +78,11 @@ fn process_ingredients(
 ) -> Result<()> {
     let iter = ingredients
         .try_iter()
-        .map_err(|e| anyhow!("ingredients must be an array: {}", e))?;
+        .map_err(|e| anyhow!("ingredients must be an array: {e}"))?;
 
     for item in iter {
         // Check if this is a recipe reference
-        let is_reference = item
-            .get_attr("reference")
-            .map(|v| v.is_true())
-            .unwrap_or(false);
+        let is_reference = item.get_attr("reference").is_ok_and(|v| v.is_true());
 
         if is_reference && expand_references {
             // Handle recipe reference only if expansion is enabled
@@ -114,7 +111,7 @@ fn process_regular_ingredient(
 ) -> Result<()> {
     let name = item
         .get_attr("name")
-        .map_err(|e| anyhow!("Failed to get ingredient name: {}", e))?
+        .map_err(|e| anyhow!("Failed to get ingredient name: {e}"))?
         .as_str()
         .ok_or_else(|| anyhow!("Ingredient name must be a string"))?
         .to_string();
@@ -130,21 +127,22 @@ fn process_regular_ingredient(
 
     // Parse and add quantity if present
     if let Ok(qty_val) = item.get_attr("quantity")
-        && let Ok(qty) = quantity_from_value(&qty_val) {
-            // Apply parent scaling if needed
-            let final_qty = if (parent_scaling - 1.0).abs() > f64::EPSILON {
-                match qty.value() {
-                    QuantityValue::Number(n) => Quantity::new(
-                        QuantityValue::Number((n.value() * parent_scaling).into()),
-                        qty.unit().map(String::from),
-                    ),
-                    _ => qty,
-                }
-            } else {
-                qty
-            };
-            grouped.add(&final_qty, get_converter());
-        }
+        && let Ok(qty) = quantity_from_value(&qty_val)
+    {
+        // Apply parent scaling if needed
+        let final_qty = if (parent_scaling - 1.0).abs() > f64::EPSILON {
+            match qty.value() {
+                QuantityValue::Number(n) => Quantity::new(
+                    QuantityValue::Number((n.value() * parent_scaling).into()),
+                    qty.unit().map(String::from),
+                ),
+                _ => qty,
+            }
+        } else {
+            qty
+        };
+        grouped.add(&final_qty, get_converter());
+    }
 
     // Add the ingredient to the list using the parser's methods
     list.add_ingredient(display_name, &grouped, get_converter());
@@ -162,7 +160,7 @@ fn process_recipe_reference(
 ) -> Result<()> {
     let name = item
         .get_attr("name")
-        .map_err(|e| anyhow!("Failed to get ingredient name: {}", e))?
+        .map_err(|e| anyhow!("Failed to get ingredient name: {e}"))?
         .as_str()
         .ok_or_else(|| anyhow!("Ingredient name must be a string"))?
         .to_string();
@@ -212,31 +210,32 @@ fn process_recipe_reference(
 
     let mut recipe = parse_result
         .output()
-        .ok_or_else(|| anyhow!("Failed to get recipe output for '{}'", reference_path))?
+        .ok_or_else(|| anyhow!("Failed to get recipe output for '{reference_path}'"))?
         .clone();
 
     // Apply scaling based on quantity if present
     if let Ok(qty_val) = item.get_attr("quantity")
-        && let Ok(qty) = quantity_from_value(&qty_val) {
-            if let Some(unit) = qty.unit() {
-                // Extract numeric value from quantity
-                let target_value = match qty.value() {
-                    QuantityValue::Number(n) => n.value(),
-                    _ => 1.0,
-                };
+        && let Ok(qty) = quantity_from_value(&qty_val)
+    {
+        if let Some(unit) = qty.unit() {
+            // Extract numeric value from quantity
+            let target_value = match qty.value() {
+                QuantityValue::Number(n) => n.value(),
+                _ => 1.0,
+            };
 
-                recipe
+            recipe
                     .scale_to_target(target_value, Some(unit), get_converter())
                     .with_context(|| {
                         format!(
                             "Failed to scale recipe '{reference_path}' with target {target_value} {unit}"
                         )
                     })?;
-            } else if let QuantityValue::Number(n) = qty.value() {
-                // Just a number, use as scaling factor
-                recipe.scale(n.value(), get_converter());
-            }
+        } else if let QuantityValue::Number(n) = qty.value() {
+            // Just a number, use as scaling factor
+            recipe.scale(n.value(), get_converter());
         }
+    }
 
     // Apply parent scaling if needed
     if (parent_scaling - 1.0).abs() > f64::EPSILON {
