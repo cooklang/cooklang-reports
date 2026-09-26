@@ -105,6 +105,10 @@ assert_eq!(result, expected);
 
 - `quantity`: Format ingredient quantities with proper spacing
   - Example: `{{ ingredient.quantity | quantity }}`
+- `tojson`: Serialize any value to JSON (minijinja's built-in filter). `<`, `>`, `&`
+  and `'` are escaped as `\uXXXX`, so the output is safe inside HTML and `<script>`
+  blocks and still parses back to the same value.
+  - Example: `{{ ingredients | map(attribute='name') | list | tojson }}`
 
 ## Project Structure
 
