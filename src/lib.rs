@@ -213,10 +213,10 @@ pub fn render_template_with_config(
     // Build the render context: start with the standard TemplateContext, then
     // overlay any extras from Config::with_context. Extras win on conflict.
     if config.extra_context.is_empty() {
-        Ok(template.render(template_context)?)
+        Ok(template.render(minijinja::value::Serde(template_context))?)
     } else {
-        let base = minijinja::Value::from_serialize(&template_context);
-        let extras = minijinja::Value::from_serialize(&config.extra_context);
+        let base = minijinja::Value::from(minijinja::value::Serde(&template_context));
+        let extras = minijinja::Value::from(minijinja::value::Serde(&config.extra_context));
         let merged = minijinja::value::merge_maps([base, extras]);
         Ok(template.render(merged)?)
     }
@@ -584,7 +584,7 @@ mod tests {
             - description: A quick, simple, yet satisfying take on a Chinese-style noodle dish.
             - author: Dan Fego
             - servings: 2
-            - tags: [\"vegan\"]"};
+            - tags: ['vegan']"};
         assert_eq!(result, expected);
     }
 

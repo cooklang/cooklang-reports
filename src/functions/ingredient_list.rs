@@ -268,10 +268,10 @@ fn process_recipe_reference(
             if let Some(unit) = qty.unit() {
                 qty_map.insert("unit", Value::from(unit));
             }
-            map.insert("quantity", Value::from_iter(qty_map));
+            map.insert("quantity", Value::from_pairs(qty_map));
         }
 
-        let nested_value = Value::from_iter(map);
+        let nested_value = Value::from_pairs(map);
         let nested_ingredients = Value::from(vec![nested_value]);
         process_ingredients(
             &nested_ingredients,

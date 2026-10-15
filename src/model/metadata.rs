@@ -48,7 +48,7 @@ impl minijinja::value::Object for Metadata {
     fn get_value(self: &std::sync::Arc<Self>, key: &minijinja::Value) -> Option<minijinja::Value> {
         self.0
             .get(key.as_str()?)
-            .map(minijinja::Value::from_serialize)
+            .map(|v| minijinja::Value::from(minijinja::value::Serde(v)))
     }
 
     fn enumerate(self: &std::sync::Arc<Self>) -> minijinja::value::Enumerator {

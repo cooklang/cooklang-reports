@@ -9,7 +9,7 @@ use cooklang_reports::render_template;
 fn tojson_serializes_template_values() {
     let out =
         render_template("@flour{200%g}", r#"{{ {"a": [1, 2], "b": "x"} | tojson }}"#).unwrap();
-    assert_eq!(out, r#"{"a":[1,2],"b":"x"}"#);
+    assert_eq!(out, r#"{"a": [1, 2], "b": "x"}"#);
 }
 
 #[test]
@@ -19,7 +19,7 @@ fn tojson_serializes_recipe_data() {
         "{{ ingredients | map(attribute='name') | list | tojson }}",
     )
     .unwrap();
-    assert_eq!(out, r#"["flour","eggs"]"#);
+    assert_eq!(out, r#"["flour", "eggs"]"#);
 }
 
 #[test]
