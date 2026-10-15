@@ -125,5 +125,5 @@ pub fn aisled(state: &State, ingredients: Value) -> Value {
         result.insert("other".to_string(), ingredients);
     }
 
-    Value::from_iter(result)
+    Value::from_pairs(result)
 }

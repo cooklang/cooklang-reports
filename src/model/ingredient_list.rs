@@ -77,13 +77,15 @@ impl minijinja::value::Object for GroupedQuantity {
             return self
                 .quantities
                 .get(idx)
-                .map(minijinja::Value::from_serialize);
+                .map(|v| minijinja::Value::from(minijinja::value::Serde(v)));
         }
 
         // Otherwise check for named properties
         match key.as_str()? {
             // Allow accessing the raw array if needed
-            "list" => Some(minijinja::Value::from_serialize(&self.quantities)),
+            "list" => Some(minijinja::Value::from(minijinja::value::Serde(
+                &self.quantities,
+            ))),
             _ => None,
         }
     }
