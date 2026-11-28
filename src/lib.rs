@@ -408,6 +408,25 @@ mod tests {
     }
 
     #[test]
+    fn test_ingredient_list_adds_unrounded_quantities() {
+        // Each 0.3335 shows as 0.334, but the total is 0.667, not 0.668.
+        let recipe = "Add @saffron{0.3335%g}, then more @saffron{0.3335%g}.";
+        let template = indoc! {"
+            # Ingredients
+            {%- for ingredient in get_ingredient_list(ingredients) %}
+            - {{ ingredient.name }}: {{ ingredient.quantities }}
+            {%- endfor %}
+        "};
+
+        let result = render_template(recipe, template).unwrap();
+        let expected = indoc! {"
+            # Ingredients
+            - saffron: 0.667 g"};
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
     fn test_recipe_scaling() {
         // Use Pancakes.cook from test data
         let recipe_path = get_test_data_path().join("recipes").join("Pancakes.cook");

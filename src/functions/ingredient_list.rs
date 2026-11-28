@@ -1,4 +1,6 @@
-use crate::model::{IngredientList as ModelIngredientList, quantity_from_value};
+use crate::model::{
+    IngredientList as ModelIngredientList, Quantity as ModelQuantity, quantity_from_value,
+};
 use crate::parser::{get_converter, get_parser};
 use anyhow::{Context, Result, anyhow};
 use cooklang::{
@@ -262,13 +264,8 @@ fn process_recipe_reference(
         }
 
         if let Some(qty) = &nested_ingredient.quantity {
-            // Create a quantity object with value and unit preserved
-            let mut qty_map = std::collections::HashMap::new();
-            qty_map.insert("value", Value::from(qty.value().to_string()));
-            if let Some(unit) = qty.unit() {
-                qty_map.insert("unit", Value::from(unit));
-            }
-            map.insert("quantity", Value::from_pairs(qty_map));
+            // The parsed quantity itself, so its value is never re-read from text
+            map.insert("quantity", Value::from(ModelQuantity::from(qty.clone())));
         }
 
         let nested_value = Value::from_pairs(map);

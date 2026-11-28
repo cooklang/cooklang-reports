@@ -1,6 +1,8 @@
 use cooklang::quantity::{Quantity as CooklangQuantity, Value as QuantityValue};
+use cooklang::{Converter, CooklangParser, Extensions};
 use serde::Serialize;
 use std::fmt::Display;
+use std::sync::OnceLock;
 
 /// Wrapper for [`cooklang::Quantity`] for reporting, used in [`Ingredient`][`super::Ingredient`].
 ///
@@ -37,10 +39,18 @@ impl From<Quantity> for minijinja::Value {
     }
 }
 
-/// Convert a minijinja Value to a cooklang Quantity
-/// The value should be an object with .value and .unit attributes
+/// The quantity a template value holds.
+///
+/// A [`Quantity`] object, such as an ingredient's `quantity`, is used exactly
+/// as parsed, so fractions, ranges and text keep their kind and numbers their
+/// precision. Any other value with `.value` and `.unit` attributes (a map
+/// written in a template) is read with the Cooklang quantity grammar:
+/// `1/2` is a number, `1-2` and `1/2-1` are ranges, anything else is text.
 pub fn quantity_from_value(qty_val: &minijinja::Value) -> Result<CooklangQuantity, String> {
-    // Get value and unit from the quantity object
+    if let Some(quantity) = qty_val.downcast_object_ref::<Quantity>() {
+        return Ok(quantity.0.clone());
+    }
+
     let value_val = qty_val
         .get_attr("value")
         .map_err(|e| format!("Failed to get quantity value: {e}"))?;
@@ -52,36 +62,35 @@ pub fn quantity_from_value(qty_val: &minijinja::Value) -> Result<CooklangQuantit
         .ok()
         .and_then(|u| u.as_str().map(String::from));
 
-    // Parse the value string
-    if let Ok(num) = value_str.parse::<f64>() {
-        // Simple number
-        Ok(CooklangQuantity::new(
-            QuantityValue::Number(num.into()),
-            unit,
-        ))
-    } else if value_str.contains('-') {
-        // Handle range like "1-2"
-        let parts: Vec<&str> = value_str.split('-').collect();
-        if parts.len() == 2
-            && let (Ok(start), Ok(end)) = (
-                parts[0].trim().parse::<f64>(),
-                parts[1].trim().parse::<f64>(),
-            )
-        {
-            return Ok(CooklangQuantity::new(
-                QuantityValue::Range {
-                    start: start.into(),
-                    end: end.into(),
-                },
-                unit,
-            ));
-        }
-        // If range parsing fails, treat as text
-        Ok(CooklangQuantity::new(QuantityValue::Text(value_str), unit))
-    } else {
-        // Text value
-        Ok(CooklangQuantity::new(QuantityValue::Text(value_str), unit))
+    Ok(CooklangQuantity::new(parse_value(&value_str), unit))
+}
+
+/// Parser for [`parse_value`]. `RANGE_VALUES` makes `1-2` a range with
+/// cooklang 0.22; from spec 0011 on, ranges are core syntax and the flag does
+/// nothing.
+fn value_parser() -> &'static CooklangParser {
+    static PARSER: OnceLock<CooklangParser> = OnceLock::new();
+    PARSER.get_or_init(|| CooklangParser::new(Extensions::RANGE_VALUES, Converter::empty()))
+}
+
+/// Reads `text` as the value between an ingredient's braces, `@x{text}`.
+/// Text that would end the braces, start a unit, a comment or a scaling
+/// lock, or that the grammar rejects (`1/0`), is kept as text.
+fn parse_value(text: &str) -> QuantityValue {
+    let as_text = || QuantityValue::Text(text.trim().to_string());
+    let breaks_the_braces = text.contains(['{', '}', '%', '\\', '\n', '\r'])
+        || text.contains("--")
+        || text.contains("[-")
+        || text.trim_start().starts_with('=');
+    if breaks_the_braces {
+        return as_text();
     }
+    value_parser()
+        .parse(&format!("@x{{{text}}}"))
+        .into_result()
+        .ok()
+        .and_then(|(recipe, _)| recipe.ingredients.into_iter().next()?.quantity)
+        .map_or_else(as_text, |quantity| quantity.value().clone())
 }
 
 impl Display for Quantity {
@@ -142,5 +151,51 @@ mod tests {
 
         let template = env.get_template("test").unwrap();
         assert_eq!(result, template.render(context).unwrap());
+    }
+
+    const HALF: cooklang::quantity::Number = cooklang::quantity::Number::Fraction {
+        whole: 0,
+        num: 1,
+        den: 2,
+        err: 0.0,
+    };
+
+    #[test]
+    fn from_value_keeps_a_parsed_quantity_as_it_is() {
+        for q in [
+            CooklangQuantity::new(
+                QuantityValue::Range {
+                    start: HALF,
+                    end: 1.0.into(),
+                },
+                Some("tsp".into()),
+            ),
+            CooklangQuantity::new(QuantityValue::Number(HALF), Some("cup".into())),
+            CooklangQuantity::new(QuantityValue::Number(0.333_35.into()), None),
+            // text that looks like a range stays text
+            CooklangQuantity::new(QuantityValue::Text("2-3".into()), None),
+        ] {
+            let value = Value::from(Quantity(q.clone()));
+            assert_eq!(quantity_from_value(&value).unwrap(), q);
+        }
+    }
+
+    #[test_case("1/2", Some("cup"), QuantityValue::Number(HALF); "fraction")]
+    #[test_case("2", None, QuantityValue::Number(2.0.into()); "number")]
+    #[test_case("1-2", Some("g"), QuantityValue::Range { start: 1.0.into(), end: 2.0.into() }; "range")]
+    #[test_case("1/2-1", Some("tsp"), QuantityValue::Range { start: HALF, end: 1.0.into() }; "range with a fraction")]
+    #[test_case("some", None, QuantityValue::Text("some".into()); "text")]
+    #[test_case("1-2-3", None, QuantityValue::Text("1-2-3".into()); "not a range")]
+    #[test_case("a {b}", None, QuantityValue::Text("a {b}".into()); "text with braces")]
+    fn from_value_reads_a_plain_map_with_the_cooklang_grammar(
+        value: &str,
+        unit: Option<&str>,
+        expected: QuantityValue,
+    ) {
+        let map = context! { value => value, unit => unit };
+        assert_eq!(
+            quantity_from_value(&map).unwrap(),
+            CooklangQuantity::new(expected, unit.map(String::from))
+        );
     }
 }

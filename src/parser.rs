@@ -13,9 +13,9 @@ static PARSER: OnceLock<CooklangParser> = OnceLock::new();
 
 /// Get the global `CooklangParser` instance.
 ///
-/// The parser is initialized with all extensions enabled and an empty converter
-/// (no unit conversions). This allows parsing all recipe features while keeping
-/// units as-is without conversions.
+/// The parser is the canonical one: no extensions (the syntax of the Cooklang
+/// specification) and an empty converter (no unit conversions), so units are
+/// kept as written.
 /// This function is thread-safe and will only initialize the parser once.
 ///
 /// # Example
