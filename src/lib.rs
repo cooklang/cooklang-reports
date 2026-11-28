@@ -427,6 +427,30 @@ mod tests {
     }
 
     #[test]
+    fn test_ingredient_list_adds_ranges() {
+        // Ranges add end to end; a number adds to both ends; an en dash is a
+        // range separator too.
+        let recipe = indoc! {"
+            Crush @garlic{2-3%cloves}, then @garlic{2–3%cloves} more.
+            Add @salt{1%tsp}, then @salt{1-2%tsp} to taste.
+        "};
+        let template = indoc! {"
+            # Ingredients
+            {%- for ingredient in get_ingredient_list(ingredients) %}
+            - {{ ingredient.name }}: {{ ingredient.quantities }}
+            {%- endfor %}
+        "};
+
+        let result = render_template(recipe, template).unwrap();
+        let expected = indoc! {"
+            # Ingredients
+            - garlic: 4-6 cloves
+            - salt: 2-3 tsp"};
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
     fn test_recipe_scaling() {
         // Use Pancakes.cook from test data
         let recipe_path = get_test_data_path().join("recipes").join("Pancakes.cook");

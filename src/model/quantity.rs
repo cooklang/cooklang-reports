@@ -1,8 +1,6 @@
 use cooklang::quantity::{Quantity as CooklangQuantity, Value as QuantityValue};
-use cooklang::{Converter, CooklangParser, Extensions};
 use serde::Serialize;
 use std::fmt::Display;
-use std::sync::OnceLock;
 
 /// Wrapper for [`cooklang::Quantity`] for reporting, used in [`Ingredient`][`super::Ingredient`].
 ///
@@ -65,15 +63,8 @@ pub fn quantity_from_value(qty_val: &minijinja::Value) -> Result<CooklangQuantit
     Ok(CooklangQuantity::new(parse_value(&value_str), unit))
 }
 
-/// Parser for [`parse_value`]. `RANGE_VALUES` makes `1-2` a range with
-/// cooklang 0.22; from spec 0011 on, ranges are core syntax and the flag does
-/// nothing.
-fn value_parser() -> &'static CooklangParser {
-    static PARSER: OnceLock<CooklangParser> = OnceLock::new();
-    PARSER.get_or_init(|| CooklangParser::new(Extensions::RANGE_VALUES, Converter::empty()))
-}
-
-/// Reads `text` as the value between an ingredient's braces, `@x{text}`.
+/// Reads `text` as the value between an ingredient's braces, `@x{text}`,
+/// with the same parser as recipes.
 /// Text that would end the braces, start a unit, a comment or a scaling
 /// lock, or that the grammar rejects (`1/0`), is kept as text.
 fn parse_value(text: &str) -> QuantityValue {
@@ -85,7 +76,7 @@ fn parse_value(text: &str) -> QuantityValue {
     if breaks_the_braces {
         return as_text();
     }
-    value_parser()
+    crate::parser::get_parser()
         .parse(&format!("@x{{{text}}}"))
         .into_result()
         .ok()
@@ -184,6 +175,7 @@ mod tests {
     #[test_case("2", None, QuantityValue::Number(2.0.into()); "number")]
     #[test_case("1-2", Some("g"), QuantityValue::Range { start: 1.0.into(), end: 2.0.into() }; "range")]
     #[test_case("1/2-1", Some("tsp"), QuantityValue::Range { start: HALF, end: 1.0.into() }; "range with a fraction")]
+    #[test_case("1–2", None, QuantityValue::Range { start: 1.0.into(), end: 2.0.into() }; "range with an en dash")]
     #[test_case("some", None, QuantityValue::Text("some".into()); "text")]
     #[test_case("1-2-3", None, QuantityValue::Text("1-2-3".into()); "not a range")]
     #[test_case("a {b}", None, QuantityValue::Text("a {b}".into()); "text with braces")]
